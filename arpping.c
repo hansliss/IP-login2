@@ -248,6 +248,16 @@ int recv_arpreply(unsigned char *buf, int len,
     {
       memcpy(tmpsubj->ll_address.sll_addr, p, from->sll_halen);
       tmpsubj->ll_address_set=1;
+
+      syslog(LOG_INFO, "Found mac: %.64s, %.64s, %02X:%02X:%02X:%02X:%02X:%02X",
+	     tmpsubj->account,
+	     inet_ntoa(tmpsubj->address),
+	     tmpsubj->ll_address.sll_addr[0],
+	     tmpsubj->ll_address.sll_addr[1],
+	     tmpsubj->ll_address.sll_addr[2],
+	     tmpsubj->ll_address.sll_addr[3],
+	     tmpsubj->ll_address.sll_addr[4],
+	     tmpsubj->ll_address.sll_addr[5]);
     }
   
 
