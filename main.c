@@ -23,11 +23,7 @@ char *versionstring_parts[]=
 {
   PACKAGE,
   VERSION,
-  "[command dispatcher]",
-  "[code cleanup]",
-  "[configurable blocking]",
   "[rich chain specs]",
-  "[autoconf]",
   __DATE__,
   __TIME__
 };
