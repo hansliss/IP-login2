@@ -192,6 +192,7 @@ int conf_set(char *conffilename, char *type, char *label,
 
 #ifndef GENSEED_H
 #define GENSEED_H
+void	set_random_file(char * r);
 char	*genseed(void);
 #endif
 
@@ -333,7 +334,7 @@ void MD5Final PROTO_LIST ((unsigned char [16], MD5_CTX *));
 #ifndef _SHA1_H_
 #define _SHA1_H_
 
-#include <stdint.h>
+#include <inttypes.h>
 /*
  * If you do not have the ISO standard stdint.h header file, then you
  * must typdef the following:
@@ -393,6 +394,14 @@ int SHA1Result( SHA1Context *,
 
 #ifndef SHA_DIGEST_LENGTH
 #define SHA_DIGEST_LENGTH SHA1HashSize
+#endif
+
+#ifndef MD4_DIGEST_LENGTH
+#define MD4_DIGEST_LENGTH 16
+#endif
+
+#ifndef MD5_DIGEST_LENGTH
+#define MD5_DIGEST_LENGTH 16
 #endif
 
 #define PSIZE SHA_DIGEST_LENGTH
