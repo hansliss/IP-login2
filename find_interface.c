@@ -427,7 +427,7 @@ int main(int argc, char *argv[])
 {
   struct in_addr d, s;
   int idx;
-  int i;
+  int i, t;
   static char tmpbuf[1024], tmpbuf2[1024];
   s.s_addr=INADDR_ANY;
   openlog("test_netlink", LOG_PERROR|LOG_PID, LOG_USER);
@@ -438,9 +438,10 @@ int main(int argc, char *argv[])
 	  idx = find_interface(&d, &s, tmpbuf2, sizeof(tmpbuf2));
 	  if (idx >= 0)
 	    {
+	      t=determine_type(&d, NULL);
 	      strcpy(tmpbuf,inet_ntoa(s));
-	      printf("%s/%s: Interface index %d, name %s, src addr=%s\n",
-		     argv[i], inet_ntoa(d), idx, tmpbuf2, tmpbuf);
+	      printf("%s/%s: Interface index %d, name %s, src addr=%s, type=%d\n",
+		     argv[i], inet_ntoa(d), idx, tmpbuf2, tmpbuf, t);
 	    }
 	  else
 	    printf("Error for address %s/%s: ret=%d\n",
@@ -453,4 +454,3 @@ int main(int argc, char *argv[])
   return 0;
 }
 #endif
-
