@@ -19,7 +19,7 @@
 #define IPT_LIB_DIR "/usr/lib/iptables"
 #endif
 
-const char *program_version="1.2.5";
+const char *program_version=IPTVERSION;
 const char *program_name="iplogin2";
 
 /* Keeping track of external matches and targets: linked lists.  */
@@ -467,19 +467,21 @@ addr_to_dotted(const struct in_addr *addrp)
 #define FALSE 0
 #endif
 
+#if 0
 int
 check_inverse(const char option[], int *invert)
 {
-	if (option && strcmp(option, "!") == 0) {
-		if (*invert)
-			exit_error(PARAMETER_PROBLEM,
-				   "Multiple `!' flags not allowed");
+        if (option && strcmp(option, "!") == 0) {
+                if (*invert)
+                        exit_error(PARAMETER_PROBLEM,
+                                   "Multiple `!' flags not allowed");
 
-		*invert = TRUE;
-		return TRUE;
-	}
-	return FALSE;
+                *invert = TRUE;
+                return TRUE;
+        }
+        return FALSE;
 }
+#endif
 
 struct in_addr *
 dotted_to_addr(const char *dotted)

@@ -79,9 +79,9 @@ if test ! -z "$libhlpath"; then
 	LDFLAGS="$LDFLAGS -L$libhlpath"
 	LOCAL_TARGETS="$LOCAL_TARGETS $libhlpath/libhl.a"
 	AC_SUBST(libhlpath)
-	LOCALLIB_DIRS="$LOCALLIB_DIRS $libhlpath"
-	(cd $libhlpath; configure $1)
+	LIBHL_DIR="$libhlpath"
+	(cd $libhlpath; ./configure $1)
 fi
 
-AC_SUBST(LOCALLIB_DIRS)
+AC_SUBST(LIBHL_DIR)
 ])

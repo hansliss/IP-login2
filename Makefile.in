@@ -15,7 +15,7 @@ LDFLAGS = @LDFLAGS@ -L/usr/local/lib -L/usr/local/ssl/lib
 LIBS = -lhl @LIBS@
 INSTALL = @INSTALL@
 LOCAL_TARGETS=@LOCAL_TARGETS@
-LOCALLIB_DIRS=@LOCALLIB_DIRS@
+LIBHL_DIR=@LIBHL_DIR@
 libhlpath=@libhlpath@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -32,12 +32,13 @@ OBJS=main.o engine.o find_interface.o misc.o filterchains.o filterchains2.o comm
 LIB_OBJS=
 
 IPTSRCDIR=@iptspath@
+IPTVERSION=@IPTVERSION@
 IPTINCDIR=$(IPTSRCDIR)/include
 IPTLDLIB=$(IPTSRCDIR)/libiptc/libiptc.a $(IPTSRCDIR)/extensions/libext.a
 IPTFLAGS=-DIPT_LIB_DIR=\"$(IPTLIBDIR)\" -rdynamic
 IPT=$(IPTFLAGS) $(IPTLDLIB)
 
-CFLAGS+=-I$(IPTINCDIR)
+CFLAGS+=-I$(IPTINCDIR) -DIPTVERSION=\"$(IPTVERSION)\"
 
 all: $(LOCAL_TARGETS) $(TARGET)
 
@@ -66,7 +67,7 @@ clean:
 	/bin/rm -f $(TARGET) *.o core
 
 distclean: clean config-clean
-	(for dir in $(LOCALLIB_DIRS); do (cd $${dir}; make distclean); done)
+	if test ! -z "$(LIBHL_DIR)"; then (cd $(LIBHL_DIR); if test -f ./Makefile; then make distclean; fi); fi
 
 config-clean: confclean-recursive
 

@@ -99,6 +99,10 @@ esac
 if test ! -z "$iptspath"; then
 	CFLAGS="$CFLAGS -I$iptspath/include"
 	CPPFLAGS="$CPPFLAGS -I$iptspath/include"
+	IPTVERSION=`grep "_VERSION:=" $iptspath/Makefile | grep -v OLD | cut -d= -f2-`
+	if test -z "$IPTVERSION"; then AC_MSG_ERROR($iptspath contains no version of iptables that I recognize); fi
+	AC_MSG_RESULT(************** Using iptables version $IPTVERSION in $iptspath);
+	AC_SUBST(IPTVERSION)
 else
 	AC_MSG_ERROR([I don't know where the iptables sources are. I need them!])
 fi

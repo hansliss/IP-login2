@@ -4,7 +4,9 @@ You need sources for iptables to compile this, because the build
 process will link the target statically to the iptables libraries,
 which have to be built non-shared. The Makefile can do this for you,
 but you will have to 'make clean' in you iptables directory and point
-it out to 'configure'.
+it out to 'configure'. IP-login2 handles at least versions 1.2.5 - 1.2.7a
+and the configure script will try to figure out which version of iptables
+you have.
 
 ./configure --with-iptables-source=/usr/local/src/iptables-1.2.5
 

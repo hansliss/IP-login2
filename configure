@@ -309,7 +309,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT PACKAGE VERSION INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LN_S CPP EGREP opensslpath libhlpath LOCALLIB_DIRS libwrappath LOCAL_TARGETS iptspath LIBOBJS LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT PACKAGE VERSION INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LN_S CPP EGREP opensslpath libhlpath LIBHL_DIR libwrappath LOCAL_TARGETS IPTVERSION iptspath LIBOBJS LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -3119,8 +3119,8 @@ echo "${ECHO_T}Using local libhl in $libhlpath" >&6
 	LDFLAGS="$LDFLAGS -L$libhlpath"
 	LOCAL_TARGETS="$LOCAL_TARGETS $libhlpath/libhl.a"
 
-	LOCALLIB_DIRS="$LOCALLIB_DIRS $libhlpath"
-	(cd $libhlpath; configure $withparm)
+	LIBHL_DIR="$libhlpath"
+	(cd $libhlpath; ./configure $withparm)
 fi
 
 
@@ -3377,6 +3377,13 @@ fi;
 if test ! -z "$iptspath"; then
 	CFLAGS="$CFLAGS -I$iptspath/include"
 	CPPFLAGS="$CPPFLAGS -I$iptspath/include"
+	IPTVERSION=`grep "_VERSION:=" $iptspath/Makefile | grep -v OLD | cut -d= -f2-`
+	if test -z "$IPTVERSION"; then { { echo "$as_me:$LINENO: error: $iptspath contains no version of iptables that I recognize" >&5
+echo "$as_me: error: $iptspath contains no version of iptables that I recognize" >&2;}
+   { (exit 1); exit 1; }; }; fi
+	echo "$as_me:$LINENO: result: ************** Using iptables version $IPTVERSION in $iptspath" >&5
+echo "${ECHO_T}************** Using iptables version $IPTVERSION in $iptspath" >&6;
+
 else
 	{ { echo "$as_me:$LINENO: error: I don't know where the iptables sources are. I need them!" >&5
 echo "$as_me: error: I don't know where the iptables sources are. I need them!" >&2;}
@@ -5534,9 +5541,10 @@ s,@CPP@,$CPP,;t t
 s,@EGREP@,$EGREP,;t t
 s,@opensslpath@,$opensslpath,;t t
 s,@libhlpath@,$libhlpath,;t t
-s,@LOCALLIB_DIRS@,$LOCALLIB_DIRS,;t t
+s,@LIBHL_DIR@,$LIBHL_DIR,;t t
 s,@libwrappath@,$libwrappath,;t t
 s,@LOCAL_TARGETS@,$LOCAL_TARGETS,;t t
+s,@IPTVERSION@,$IPTVERSION,;t t
 s,@iptspath@,$iptspath,;t t
 s,@LIBOBJS@,$LIBOBJS,;t t
 s,@LTLIBOBJS@,$LTLIBOBJS,;t t

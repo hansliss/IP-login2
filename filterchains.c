@@ -67,7 +67,7 @@ void fchain_flush(char *spec)
   if (!table)
     table="filter";
 
-  syslog(LOG_INFO,"Flushin table %s, chain %s", table, chain);
+  syslog(LOG_INFO,"Flushing table %s, chain %s", table, chain);
 
   ret=iptables_flush_chain(table, chain);
 }

@@ -95,3 +95,26 @@ void recalc(struct pingconfig *pingconf, int logout_timeout, int number_of_users
   margin=1000000 * logout_timeout / pingconf->maxmissed -
     number_of_users * pingconf->min_pinginterval;
 }
+
+int
+check_inverse(const char option[], int *invert)
+{
+        return 0;
+}
+
+u_int16_t parse_protocol(const char *s)
+{
+  return 0;
+}
+void parse_hostnetworkmask(const char *name, struct in_addr **addrpp, struct in_addr *maskp, unsigned int *naddrs)
+{
+}
+char *addr_to_anyname(const struct in_addr *addr)
+{
+  return NULL;
+}
+char *mask_to_dotted(const struct in_addr *mask)
+{
+  return NULL;
+}
+
