@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <iplogin2.h>
-#include <divlib.h>
+#include <hl.h>
 
 #define BUFSIZE 8192
 
