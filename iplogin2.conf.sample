@@ -14,6 +14,11 @@ server nomad
 	key=The key to it all is fnurgel
 	accounting_lib=./acclib_test.so
 	accounting_id=iplogin
+	stat_timelimit=60
+	stat_countlimit=3
+	stat_blockchain=block/b>DROP
+	stat_blocktime=900
+	stat_blockgc=3600
 #	flush_on_start=foo,bar,mangle:users
 #	tracefile=./iplogin2.trace
 #	ping_source=130.238.131.234
