@@ -1433,7 +1433,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 PACKAGE=iplogin2
-VERSION=2.2.9
+VERSION=2.2.10
 
           ac_config_headers="$ac_config_headers autoconfig.h"
 

@@ -7,7 +7,7 @@ server nomad
 	listen_port=iplogin2
 	accept_interval=30
 	accept_timeout=20
-	logout_imeout=25
+	logout_timeout=25
 	pinginterval=5000
 	min_pinginterval=2000
 	missdiff=2
@@ -26,7 +26,6 @@ server nomad
 	txidle=900
 	idlehosts=1.1.1.1/32,2.2.2.2/255.255.255.255,3.3.3.3
 	savetime=300
-#	permitted_chains=users,nat:users
 #	flush_on_start=foo,bar,mangle:users
 #	tracefile=./iplogin2.trace
 #	ping_source=130.238.131.234
@@ -35,6 +34,7 @@ client localhost
 	ip=127.0.0.1
 	key=The key is to make it n0npredictable?
 	perms=any
+	permitted_chains=users,nat:users
 	syslog_facility=local6
 	syslog_name=iladmin
 	servername=nomad
@@ -44,6 +44,7 @@ client watcher
 	ip=192.168.10.8
 	key=vdsklvsjdvnsldkvnlvfjsklvjsdvfdjsvlewrehqfupq
 	perms=stat,dump
+	permitted_chains=
 	syslog_facility=local6
 	syslog_name=ilwatch
 	servername=nomad

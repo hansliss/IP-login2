@@ -8,6 +8,8 @@
 #include <syslog.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "autoconfig.h"
 #include <hl.h>
@@ -16,6 +18,9 @@
 #define BUFSIZE 8192
 #define DEFAULT_SYSLOG_FACILITY LOG_LOCAL5
 #define READ_TIMEOUT 10000
+
+#define CFILE1 "/opt/iplogin2/etc/iplogin2.conf"
+#define CFILE2 "/usr/local/etc/iplogin.conf"
 
 void initialize_log(char *progname_in, int syslog_facility)
 {
@@ -155,6 +160,7 @@ int main(int argc, char *argv[])
   int mysocket;
   struct sockaddr_in my_server_address;
   char *conffile, *clientname;
+  struct stat statbuf;
   char servername[1024];
   struct in_addr my_inaddr;
   char local_key[BUFSIZE], remote_key[BUFSIZE];
@@ -166,6 +172,19 @@ int main(int argc, char *argv[])
     }
   conffile=argv[1];
   clientname=argv[2];
+
+  if (!strcasecmp(conffile, "."))
+    {
+      if (!stat(CFILE1, &statbuf))
+	conffile=CFILE1;
+      else
+	if (!stat(CFILE2, &statbuf))
+	  conffile=CFILE2;
+    }
+
+  if (!strcasecmp(clientname, "."))
+    clientname="localhost";
+
   if (!initialize(clientname, conffile, &my_server_address, servername))
     {
       fprintf(stderr,"Giving up.\n");

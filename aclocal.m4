@@ -77,6 +77,7 @@ if test ! -z "$libhlpath"; then
 	CFLAGS="$CFLAGS -I$libhlpath"
 	CPPFLAGS="$CPPFLAGS -I$libhlpath"
 	LDFLAGS="$LDFLAGS -L$libhlpath"
+	LIBS="-lhl $LIBS"
 	HLLIB="$libhlpath/libhl.a"
 	HLLIB_INCLUDE="$libhlpath/hl.h"
 	AC_SUBST(libhlpath)

@@ -271,7 +271,7 @@ void receive_replies(socketnode allsockets, usernode users, int ident, int timeo
   fd_set myfdset;
   int maxsock=-1, i;
   socketnode tmpsock;
-  struct timeval select_timeout={0, 200000};
+  struct timeval select_timeout;
   static unsigned char packet[4096];
   unsigned char from[16384];
   int alen;
@@ -544,7 +544,7 @@ int mainloop(struct config *conf, int command_server_socket)
       trace_msg("Checking for replies");
 #endif
       /********* Receive any pending PING replies *********/
-      receive_replies(allsockets, users, ident, 2);
+      receive_replies(allsockets, users, ident, 250);
 
       scount=0;
       tmpuser=users;
