@@ -456,11 +456,6 @@ int main(int argc, char *argv[])
 	  return RET_INVOKE;
 	}
     }
-  if ((argc-optind) != 2)
-    {
-      usage(argv[0]);
-      return RET_INVOKE;
-    }
 
   memset(&my_config,0,sizeof(my_config));
   strncpy(my_config.servername, _servername, CONFBSIZE);
