@@ -29,8 +29,8 @@
 #include "filterchains.h"
 #include "find_interface.h"
 #include "misc.h"
-#include "mymalloc.h"
 #include "accounting.h"
+#include "trie.h"
 
 #define BUFSIZE 8192
 #define READ_TIMEOUT 700
@@ -40,30 +40,30 @@
   strings sent, sent as a string.
   */
 
-typedef void (*command_handler)(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+typedef void (*command_handler)(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
 /*** Protos ***/
-void add_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void send_stat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void dump_tstat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void do_check(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void do_check_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void del_client(int csocket, usernode thisuser, char *tmpbuf, usernode *users, struct config *conf);
-void del_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void del_host(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void reload_chains(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void printhelp(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void list_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void dump_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void reset(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void quit(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void save_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void load_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void return_count(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void return_rss(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void return_vsize(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void do_memdebug(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void do_addblock(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
-void do_delblock(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void add_user(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void send_stat(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void dump_tstat(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void do_check(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void do_check_user(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void del_client(int csocket, usernode thisuser, char *tmpbuf, struct trie *users, struct config *conf);
+void del_user(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void del_host(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void reload_chains(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void printhelp(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void list_state(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void dump_state(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void reset(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void quit(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void save_state(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void load_state(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void return_count(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void return_rss(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void return_vsize(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void do_addblock(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void do_delblock(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
+void do_dumptrie(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h);
 
 #define COMMAND_ADD 1
 #define COMMAND_STAT 2
@@ -79,13 +79,13 @@ void do_delblock(int csocket, namelist parms, usernode *users, struct config *co
 #define COMMAND_COUNT 12
 #define COMMAND_RSS 13
 #define COMMAND_VSIZE 14
-#define COMMAND_MEMDEBUG 15
 #define COMMAND_ADDBLOCK 16
 #define COMMAND_DELBLOCK 17
 #define COMMAND_CHECK 18
 #define COMMAND_DELUSER 19
 #define COMMAND_LIST 20
 #define COMMAND_CHECKUSER 21
+#define COMMAND_DUMPTRIE 21
 #define COMMAND_UNKNOWN -1
 #define COMMAND_ARGS -2
 #define COMMAND_PERMS -3
@@ -134,8 +134,8 @@ struct commandtabnode {
      "Get RSS:\t\trss"},
     {"vsize",COMMAND_VSIZE,0, return_vsize,
      "Get vsize:\t\tvsize"},
-    {"memdebug",COMMAND_MEMDEBUG,1, do_memdebug,
-     "Mem usage debugging:\tmemdebug {0,1}"},
+    {"dumptrie",COMMAND_DUMPTRIE,0, do_dumptrie,
+     "Dump the usernode LPC-trie:\tdumptrie"},
     {"addblock",COMMAND_ADDBLOCK,2, do_addblock,
      "Add tcp block:\taddblock <address> <list of chains>"},
     {"delblock",COMMAND_DELBLOCK,2, do_delblock,
@@ -149,25 +149,23 @@ struct commandtabnode {
 /*
   Reset the state to basic, removing all chains and emptying the user list
   */
-void do_reset(usernode *users, void *accounting_handle)
+void do_reset(struct trie *users, void *accounting_handle)
 {
   syslog(LOG_NOTICE, "Resetting..");
-  mymalloc_pushcontext("do_reset()");
   fchain_unloadall();
-  mymalloc_popcontext();
   freeUserList(users, accounting_handle);
-  mymalloc_popcontext();
-  mymalloc_pushcontext("mainloop()");
 }
 
 /* Unload and reload all the filter chain rules for all the users. */
-int do_reloadchains(usernode users)
+int do_reloadchains(struct trie *users)
 {
   namelist tmplist;
-  usernode tmpsubj=users;
-  mymalloc_pushcontext("do_reloadchains()");
+  usernode tmpsubj;
+  trietrav_handle h=NULL;
+  unsigned int key;
+  trietrav_init(&h, users, 0);
   fchain_unloadall();
-  while (tmpsubj)
+  while (trietrav_next(&h, &key, (void *)(&tmpsubj), NULL))
     {
       /* Each 'user' can be present in several different chains */
       tmplist=tmpsubj->filter_chains; 
@@ -176,11 +174,7 @@ int do_reloadchains(usernode users)
 	  fchain_addrule(tmpsubj->address, tmplist->name);
 	  tmplist=tmplist->next;
 	} /* tmplist */
-      tmpsubj=tmpsubj->next;
     } /* tmpsubj */
-  mymalloc_popcontext();
-  mymalloc_popcontext();
-  mymalloc_pushcontext("mainloop()");
   return 1;
 }
 
@@ -189,7 +183,7 @@ int do_reloadchains(usernode users)
    to trust it. If 'csocket' is not -1, we send replies to the client
    on the other end.
 */
-void do_load_state(int csocket, struct config *conf, char *filename, usernode *users,
+void do_load_state(int csocket, struct config *conf, char *filename, struct trie *users,
 		   struct sockaddr_in *ping_source, void *accounting_handle, HLCRYPT_HANDLE h)
 {
   FILE *dumpfile;
@@ -200,7 +194,6 @@ void do_load_state(int csocket, struct config *conf, char *filename, usernode *u
   struct in_addr address, source_address;
   int type, ifindex;
   time_t added;
-  mymalloc_pushcontext("do_load_state()");
   /* Silently protect our buffers */
   if (strlen(filename)>(BUFSIZE-200))
     filename[BUFSIZE-200]='\0';
@@ -227,7 +220,7 @@ void do_load_state(int csocket, struct config *conf, char *filename, usernode *u
 		  inet_aton(astring,&address) &&
 		  inet_aton(sastring,&source_address))
 		{
-		  if (!findUser(*users,&address))
+		  if (!findUser(users,&address))
 		    {
 		      chains=NULL;
 		      if (splitstring(chainstring, ',', &chains)>0)
@@ -321,16 +314,18 @@ void do_load_state(int csocket, struct config *conf, char *filename, usernode *u
 	    }
 	}
     } /* fopen() */
-  mymalloc_popcontext();
 }
 
 /* Save the current state to a given file, if possible
  */
 
-void do_save_state(int csocket, char *filename, usernode users, HLCRYPT_HANDLE h)
+void do_save_state(int csocket, char *filename, struct trie *users, HLCRYPT_HANDLE h)
 {
   FILE *dumpfile;
-  usernode tmpnode=users;
+  usernode tmpnode;
+  trietrav_handle th=NULL;
+  unsigned int key;
+  trietrav_init(&th, users, 0);
   namelist tmplist;
   static char tmpbuf[BUFSIZE], tmpbuf2[BUFSIZE];
 
@@ -354,7 +349,7 @@ void do_save_state(int csocket, char *filename, usernode users, HLCRYPT_HANDLE h
 	      "# -----------------------------------------------------------\n");
 
       /* Walk the list of user nodes */
-      while (tmpnode)
+      while (trietrav_next(&th, &key, (void *)(&tmpnode), NULL))
 	{
 	  /* make a single string from the list of chains */
 	  tmplist=tmpnode->filter_chains;
@@ -385,7 +380,6 @@ void do_save_state(int csocket, char *filename, usernode users, HLCRYPT_HANDLE h
 		  tmpnode->added,
 		  tmpbuf
 		  );
-	  tmpnode=tmpnode->next;
 	} /* while */
       fclose(dumpfile);
       if (csocket!=-1)
@@ -542,7 +536,7 @@ void check_flood(usernode user, struct config *conf)
 
   Print usage text
   */
-void printhelp(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void printhelp(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   char x[32];
   int i;
@@ -561,7 +555,7 @@ void printhelp(int csocket, namelist parms, usernode *users, struct config *conf
   the interface index and 'user' type etc.
   This command accepts hostnames or IP adresses.
  */
-void add_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void add_user(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE], useraddr[BUFSIZE];
   namelist chains=NULL, tmplist;
@@ -571,7 +565,6 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf,
 
   /*  syslog(LOG_NOTICE, "Command: add");*/
   /* Try to extract an IP address from the name/adress received */
-  mymalloc_pushcontext("add_user()");
   if (makeaddress(parms->name, &user_address))
     {
       /* Prepare a nice string for logging purposes */
@@ -581,7 +574,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf,
 	sprintf(useraddr,"%s/%s",parms->name,inet_ntoa(user_address));
 
       /* Check if this user is already present */
-      if ((thisnode=findUser(*users, &user_address))!=NULL)
+      if ((thisnode=findUser(users, &user_address))!=NULL)
 	{
 	  syslog(LOG_NOTICE, "Add: user %s already active",useraddr);
 	  check_flood(thisnode, conf);
@@ -672,7 +665,6 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf,
       hlcrypt_Send(csocket,"1", h);
       hlcrypt_Send(csocket,"add: Unknown address" , h);
     }
-  mymalloc_popcontext();
 }
 
 
@@ -682,7 +674,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf,
   Send info on one specific user.
   This command accepts hostnames or IP adresses.
   */
-void send_stat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void send_stat(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   struct in_addr user_address;
@@ -691,7 +683,7 @@ void send_stat(int csocket, namelist parms, usernode *users, struct config *conf
   /* Convert the given user reference to an IP address and find the
      user in our list */
   if (makeaddress(parms->name, &user_address) &&
-      (thisnode=findUser(*users, &user_address)))
+      (thisnode=findUser(users, &user_address)))
     {
       strncpy(tmpbuf,inet_ntoa(user_address),BUFSIZE);
       tmpbuf[BUFSIZE-1]='\0';
@@ -716,10 +708,12 @@ void send_stat(int csocket, namelist parms, usernode *users, struct config *conf
 
   Dump traffic statistics for all users to a file.
   */
-void dump_tstat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void dump_tstat(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   usernode thisnode;
+  trietrav_handle th=NULL;
+  unsigned int key;
   FILE *statfile;
   /*  syslog(LOG_NOTICE, "Command: tstat");*/
   if (!(statfile=fopen(parms->name, "w")))
@@ -731,14 +725,13 @@ void dump_tstat(int csocket, namelist parms, usernode *users, struct config *con
     }
   else
     {
-      thisnode=*users;
-      while (thisnode)
+      trietrav_init(&th, users, 0);
+      while (trietrav_next(&th, &key, (void *)(&thisnode), NULL))
 	{
 	  fprintf(statfile, "%s\t%d\t%d\t%lld\t%lld\n",
 		  inet_ntoa(thisnode->address),
 		  thisnode->rxkbps, thisnode->txkbps,
 		  thisnode->rxcounter, thisnode->txcounter);
-	  thisnode=thisnode->next;
 	}
       fclose(statfile);
       hlcrypt_Send(csocket,"1", h);
@@ -752,7 +745,7 @@ void dump_tstat(int csocket, namelist parms, usernode *users, struct config *con
   Check if a hose is logged in
   This command accepts hostnames or IP adresses.
   */
-void do_check(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void do_check(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   struct in_addr user_address;
@@ -762,7 +755,7 @@ void do_check(int csocket, namelist parms, usernode *users, struct config *conf,
      user in our list */
   hlcrypt_Send(csocket,"1", h);
   if (makeaddress(parms->name, &user_address) &&
-      (thisnode=findUser(*users, &user_address)))
+      (thisnode=findUser(users, &user_address)))
     {
       strncpy(tmpbuf,inet_ntoa(user_address),BUFSIZE);
       tmpbuf[BUFSIZE-1]='\0';
@@ -785,14 +778,14 @@ void do_check(int csocket, namelist parms, usernode *users, struct config *conf,
   Check if a user is logged in
   This command accepts an username.
   */
-void do_check_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void do_check_user(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   usernode thisnode;
 
   /*  syslog(LOG_NOTICE, "Command: checkuser");*/
   /* Find the given user in our list */
   hlcrypt_Send(csocket,"1", h);
-  if ((thisnode=findUser_account(*users, parms->name)))
+  if ((thisnode=findUser_account(users, parms->name)))
     {
       syslog(LOG_NOTICE, "Checkuser: %s/%s found", parms->name, inet_ntoa(thisnode->address));
       check_flood(thisnode, conf);
@@ -806,7 +799,7 @@ void do_check_user(int csocket, namelist parms, usernode *users, struct config *
 }
 
 /* used by del_user() and del_host() */
-void del_client(int csocket, usernode thisuser, char *tmpbuf, usernode *users, struct config *conf)
+void del_client(int csocket, usernode thisuser, char *tmpbuf, struct trie *users, struct config *conf)
 {
   namelist tmplist;
   time_t elapsed;
@@ -846,14 +839,13 @@ void del_client(int csocket, usernode thisuser, char *tmpbuf, usernode *users, s
   Delete a user from our list and remove it from the filter chains.
   This command accepts hostnames or IP adresses.
   */
-void del_host(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void del_host(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   struct in_addr user_address;
   static char tmpbuf[BUFSIZE];
   usernode thisuser;
 
   /*  syslog(LOG_NOTICE, "Command: del");*/
-  mymalloc_pushcontext("del_host()");
   /* Convert the given user reference to an IP address */
   if (makeaddress(parms->name, &user_address))
     {
@@ -864,7 +856,7 @@ void del_host(int csocket, namelist parms, usernode *users, struct config *conf,
 	snprintf(tmpbuf, BUFSIZE-1, "%s/%s",parms->name,inet_ntoa(user_address));
 
       /* Try to find the user in our list */
-      if (!(thisuser=findUser(*users, &user_address)))
+      if (!(thisuser=findUser(users, &user_address)))
 	{
 	  syslog(LOG_NOTICE, "Del: host %s is unknown",tmpbuf);
 	  hlcrypt_Send(csocket,"1", h);
@@ -883,7 +875,6 @@ void del_host(int csocket, namelist parms, usernode *users, struct config *conf,
       hlcrypt_Send(csocket,"1", h);
       hlcrypt_Send(csocket,"del: Unknown address", h);
     }
-  mymalloc_popcontext();
 }
 
 /*
@@ -892,19 +883,18 @@ void del_host(int csocket, namelist parms, usernode *users, struct config *conf,
   Delete a user from our list and remove it from the filter chains.
   This command accepts hostnames or IP adresses.
   */
-void del_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void del_user(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   usernode thisuser;
   int there = 0;
 
   /*  syslog(LOG_NOTICE, "Command: deluser");*/
-  mymalloc_pushcontext("del_user()");
 
   for (;;)
     {
       /* Try to find the user in our list */
-      if (!(thisuser=findUser_account(*users, parms->name)))
+      if (!(thisuser=findUser_account(users, parms->name)))
         {
 	  if (there == 1)
 	    break;
@@ -912,7 +902,6 @@ void del_user(int csocket, namelist parms, usernode *users, struct config *conf,
           syslog(LOG_NOTICE, "Deluser: user %s is unknown", parms->name);
           hlcrypt_Send(csocket,"1", h);
           hlcrypt_Send(csocket,"Not there", h);
-          mymalloc_popcontext();
           return;
         }
       else /* findUserName */
@@ -926,7 +915,6 @@ void del_user(int csocket, namelist parms, usernode *users, struct config *conf,
     }
   hlcrypt_Send(csocket,"1", h);
   hlcrypt_Send(csocket,"OK", h);
-  mymalloc_popcontext();
 }
 
 /*
@@ -934,11 +922,11 @@ void del_user(int csocket, namelist parms, usernode *users, struct config *conf,
 
   Reload all filter chains.
   */
-void reload_chains(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void reload_chains(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   syslog(LOG_NOTICE, "Command: reload");
   hlcrypt_Send(csocket,"1", h);
-  if (do_reloadchains(*users))
+  if (do_reloadchains(users))
     hlcrypt_Send(csocket,"OK", h);
   else
     hlcrypt_Send(csocket,"Failed", h);
@@ -949,7 +937,7 @@ void reload_chains(int csocket, namelist parms, usernode *users, struct config *
   
   Remove all filter chain rules and empty our list of users.
  */
-void reset(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void reset(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   syslog(LOG_NOTICE, "Command: reset");
   do_reset(users, conf->accounting_handle);
@@ -962,7 +950,7 @@ void reset(int csocket, namelist parms, usernode *users, struct config *conf, HL
   
   Remove all filter chain rules and quit.
  */
-void quit(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void quit(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   syslog(LOG_NOTICE, "Command: quit");
   do_reset(users, conf->accounting_handle);
@@ -979,30 +967,30 @@ void quit(int csocket, namelist parms, usernode *users, struct config *conf, HLC
 
   'dump' all the info on all the nodes to the client.
   */
-void dump_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void dump_state(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   int i=0;
-  usernode thisnode=*users;
+  usernode thisnode;
+  trietrav_handle th=NULL;
+  unsigned int key;
+
+  trietrav_init(&th, users, 0);
   syslog(LOG_NOTICE, "Command: dump");
   /* Count the users */
-  while (thisnode)
-    {
-      i++;
-      thisnode=thisnode->next;
-    }
+  while (trietrav_next(&th, &key, (void *)(&thisnode), NULL))
+    i++;
 
   /* Send the number of strings to the client */
   sprintf(tmpbuf,"%d",(STAT_LINES+1)*i);
   hlcrypt_Send(csocket, tmpbuf, h);
 
   /* ...and then send all the data */
-  thisnode=*users;
-  while (thisnode)
+  trietrav_init(&th, users, 0);
+  while (trietrav_next(&th, &key, (void *)(&thisnode), NULL))
     {
       hlcrypt_Send(csocket,"----------------------------", h);
       send_single_stat(csocket, thisnode, h);
-      thisnode=thisnode->next;
     }
 }
 
@@ -1011,30 +999,28 @@ void dump_state(int csocket, namelist parms, usernode *users, struct config *con
 
   'list' all the info on all the nodes to the client.
   */
-void list_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void list_state(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   int i=0;
-  usernode thisnode=*users;
+  usernode thisnode;
+  trietrav_handle th=NULL;
+  unsigned int key;
+
+  trietrav_init(&th, users, 0);
   syslog(LOG_NOTICE, "Command: list");
   /* Count the users */
-  while (thisnode)
-    {
-      i++;
-      thisnode=thisnode->next;
-    }
+  while (trietrav_next(&th, &key, (void *)(&thisnode), NULL))
+    i++;
 
   /* Send the number of strings to the client */
   sprintf(tmpbuf,"%d",i);
   hlcrypt_Send(csocket, tmpbuf, h);
 
   /* ...and then send all the data */
-  thisnode=*users;
-  while (thisnode)
-    {
-      send_single_stat_one(csocket, thisnode, h);
-      thisnode=thisnode->next;
-    }
+  trietrav_init(&th, users, 0);
+  while (trietrav_next(&th, &key, (void *)(&thisnode), NULL))
+    send_single_stat_one(csocket, thisnode, h);
 }
 
 /*
@@ -1042,10 +1028,10 @@ void list_state(int csocket, namelist parms, usernode *users, struct config *con
 
   Save all our data to a file that can be loaded later.
   */
-void save_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void save_state(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   syslog(LOG_NOTICE, "Command: savestate");
-  do_save_state(csocket, parms->name, *users, h);
+  do_save_state(csocket, parms->name, users, h);
 }
 
 /*
@@ -1053,7 +1039,7 @@ void save_state(int csocket, namelist parms, usernode *users, struct config *con
 
   Reset and then load the state from the given file.
   */
-void load_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void load_state(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   syslog(LOG_NOTICE, "Command: loadstate");
   do_reset(users, conf->accounting_handle);
@@ -1065,17 +1051,18 @@ void load_state(int csocket, namelist parms, usernode *users, struct config *con
   
   Count active users
  */
-void return_count(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void return_count(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   int count=0;
-  usernode tmpnode=*users;
+  usernode tmpnode;
+  trietrav_handle th=NULL;
+  unsigned int key;
+
+  trietrav_init(&th, users, 0);
   /*  syslog(LOG_NOTICE, "Command: count");*/
-  while(tmpnode)
-    {
-      count++;
-      tmpnode=tmpnode->next;
-    }
+  while (trietrav_next(&th, &key, (void *)(&tmpnode), NULL))
+    count++;
   hlcrypt_Send(csocket,"1", h);
   sprintf(tmpbuf,"%d",count);
   hlcrypt_Send(csocket,tmpbuf, h);
@@ -1086,7 +1073,7 @@ void return_count(int csocket, namelist parms, usernode *users, struct config *c
   
   return RSS
  */
-void return_rss(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void return_rss(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   syslog(LOG_NOTICE, "Command: rss");
@@ -1100,7 +1087,7 @@ void return_rss(int csocket, namelist parms, usernode *users, struct config *con
   
   return VSIZE
  */
-void return_vsize(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void return_vsize(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   syslog(LOG_NOTICE, "Command: vsize");
@@ -1110,19 +1097,32 @@ void return_vsize(int csocket, namelist parms, usernode *users, struct config *c
 }
 
 /*
-  Command: MEMDEBUG
-
-  set/unset malloc() debug flag
-  */
-void do_memdebug(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+  Command: DUMPTRIE
+  
+  return trie printout
+ */
+void do_dumptrie(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
-  int v;
-  static char tmpbuf[BUFSIZE];
-  sscanf(parms->name,"%i",&v);
-  mymalloc_setdebug(v);
-  hlcrypt_Send(csocket,"1", h);
-  sprintf(tmpbuf,"Memory debugging is %s",v?"enabled":"disabled");
-  hlcrypt_Send(csocket,tmpbuf, h);
+  namelist nl=NULL, tmpname;
+  char tmpbuf[32];
+  int count=0;
+  syslog(LOG_NOTICE, "Command: dumptrie");
+  trie_dump_nl(&nl, users);
+  tmpname=nl;
+  while (tmpname)
+    {
+      count++;
+      tmpname=tmpname->next;
+    }
+  sprintf(tmpbuf,"%d",count);
+  hlcrypt_Send(csocket, tmpbuf, h);
+  tmpname=nl;
+  while (tmpname)
+    {
+      hlcrypt_Send(csocket, tmpname->name, h);
+      tmpname=tmpname->next;
+    }
+  freenamelist(&nl);
 }
 
 /*
@@ -1131,14 +1131,13 @@ void do_memdebug(int csocket, namelist parms, usernode *users, struct config *co
   Add a tcp block filter line.
   This command accepts hostnames or IP adresses.
  */
-void do_addblock(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void do_addblock(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   namelist chains=NULL, tmplist;
   struct in_addr user_address;
   syslog(LOG_NOTICE, "Command: addblock");
   /* Try to extract an IP address from the name/adress received */
-  mymalloc_pushcontext("do_addblock()");
   if (makeaddress(parms->name, &user_address))
     {
       /* Prepare a nice string for logging purposes */
@@ -1175,7 +1174,6 @@ void do_addblock(int csocket, namelist parms, usernode *users, struct config *co
       hlcrypt_Send(csocket,"1", h);
       hlcrypt_Send(csocket,"addblock: Unknown address", h);
     }
-  mymalloc_popcontext();
 }
 
 /*
@@ -1184,14 +1182,13 @@ void do_addblock(int csocket, namelist parms, usernode *users, struct config *co
   Remove a tcp block filter line.
   This command accepts hostnames or IP adresses.
  */
-void do_delblock(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void do_delblock(int csocket, namelist parms, struct trie *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   namelist chains=NULL, tmplist;
   struct in_addr user_address;
   syslog(LOG_NOTICE, "Command: delblock");
   /* Try to extract an IP address from the name/adress received */
-  mymalloc_pushcontext("do_delblock()");
   if (makeaddress(parms->name, &user_address))
     {
       /* Prepare a nice string for logging purposes */
@@ -1228,7 +1225,6 @@ void do_delblock(int csocket, namelist parms, usernode *users, struct config *co
       hlcrypt_Send(csocket,"1", h);
       hlcrypt_Send(csocket,"delblock: Unknown address", h);
     }
-  mymalloc_popcontext();
 }
 
 /****************************************************************************/
@@ -1309,7 +1305,7 @@ int check_command(char *cmd, char *clientname, char *conffile,
 void docommand(struct config *conf,
 	       int csocket,
 	       char *clientname,
-	       usernode *users, HLCRYPT_HANDLE h)
+	       struct trie *users, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE], command[BUFSIZE];
   static unsigned long oldvsize=0, newvsize;

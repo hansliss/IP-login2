@@ -42,4 +42,4 @@ int send_arpping(socketnode *rawsockets, usernode user);
 int recv_arpreply(unsigned char *buf,
 		  int len,
 		  struct sockaddr_ll *from,
-		  usernode users);
+		  struct trie *users);

@@ -25,6 +25,8 @@ server nomad
 	idlehosts=1.1.1.1/32,2.2.2.2/255.255.255.255,3.3.3.3
 	savetime=300
 	key=The key to it all is fnurgel
+	statslogfile=/var/log/iplogin2.stats
+	statsloginterval=10
 #	flush_on_start=foo,bar,mangle:users
 #	tracefile=./iplogin2.trace
 

@@ -43,5 +43,5 @@ int send_icmpping(socketnode *rawsockets, usernode user, int ident);
 int recv_icmpreply(unsigned char *buf,
 		   int len,
 		   struct sockaddr_in *from,
-		   usernode users,
+		   struct trie *users,
 		   int ident);

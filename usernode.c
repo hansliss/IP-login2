@@ -20,12 +20,13 @@
 #include <sys/timeb.h>
 #include "usernode.h"
 #include "accounting.h"
+#include "trie.h"
 
 /*
   We try to keep the list in address order, strictly for cosmetical
   reasons.
   */
-usernode addUser(usernode *l, struct config *conf, char *account, char *session_id,
+usernode addUser(struct trie *nodes, struct config *conf, char *account, char *session_id,
 		 int user_type, struct in_addr *address,
 		 int ifindex, char *ifname, struct in_addr *source,
 		 namelist chains,
@@ -36,8 +37,6 @@ usernode addUser(usernode *l, struct config *conf, char *account, char *session_
   unsigned int useraddress;
   struct network *tmpidlehost;
 
-  if (!(*l) || ((*l)->address.s_addr > address->s_addr))
-    {
       if (!(new_user=(usernode)malloc(sizeof(*new_user))))
 	{
 	  syslog(LOG_ERR,"malloc(): %m");
@@ -90,7 +89,6 @@ usernode addUser(usernode *l, struct config *conf, char *account, char *session_
 
 	      new_user->block_installed=0;
 	      new_user->ll_address_set=-1;
-	      new_user->next=(*l);
 	      ftime(&tb);
 	      if (!session_id)
 		sprintf(new_user->session_id,"%08x%08x",
@@ -104,73 +102,58 @@ usernode addUser(usernode *l, struct config *conf, char *account, char *session_
 
 	      if (accounting_handle)
 		acct_login(accounting_handle, new_user->account, new_user->session_id);
-	      (*l)=new_user;
+	      trie_put(nodes, (t_key)htonl(address->s_addr), (void *)new_user);
 	      return new_user;
 	    }
 	}
-    }
+}
+
+usernode findUser(struct trie *nodes, struct in_addr *address)
+{
+  usernode tmpuser;
+  if (trie_get(nodes, (t_key)htonl(address->s_addr), (void *)&(tmpuser)))
+    return NULL;
   else
-    return addUser(&((*l)->next), conf, account, session_id, user_type, address,
-		   ifindex, ifname, source, chains, added, accounting_handle);
+    return tmpuser;
 }
 
-/*
-  This function is not written to depend on the order of the list
-  because there's no point, and the order could change anyway.
-  */
-usernode findUser(usernode l, struct in_addr *address)
+usernode findUser_account(struct trie *nodes, char *account)
 {
-  usernode tmpuser=l;
-  while (tmpuser && (memcmp(&(tmpuser->address),
-			       address, sizeof(struct in_addr))!=0))
-    tmpuser=tmpuser->next;
-  return tmpuser;
-}
+  usernode tmpnode, result=NULL;
+  trietrav_handle h=NULL;
+  unsigned int key;
 
-usernode findUser_account(usernode l, char *account)
-{
-  usernode tmpuser=l;
-  while (tmpuser && (strcasecmp(tmpuser->account, account)!=0))
-    tmpuser=tmpuser->next;
-  return tmpuser;
+  trietrav_init(&h, nodes, 0);
+  while (trietrav_next(&h, &key, (void *)&(tmpnode), NULL))
+    if (!strcasecmp(tmpnode->account, account))
+      {
+	result=tmpnode;
+	trietrav_cleanup(&h);
+	break;
+      }
+  return result;
 }
 
 /*
   Find the node to delete. If found, save it to 'tmpuser'
   and relink the list past it, then release it.
   */
-void delUser(usernode *l, struct in_addr *address, void *accounting_handle)
+void delUser(struct trie *nodes, struct in_addr *address, void *accounting_handle)
 {
   usernode tmpuser;
-  if (!(*l))
-    return;
-  else if (!memcmp(&((*l)->address), address, sizeof(struct in_addr)))
+  if (!trie_get(nodes, (t_key)htonl(address->s_addr), (void *)&((tmpuser))))
     {
-      tmpuser=(*l);
-      (*l)=(*l)->next;
+      trie_remove(nodes, (t_key)htonl(address->s_addr));
       if (accounting_handle)
 	acct_logout(accounting_handle, tmpuser->account, tmpuser->session_id);
       free(tmpuser->account);
       freenamelist(&(tmpuser->filter_chains));
       free(tmpuser);
     }
-  else
-    delUser(&((*l)->next), address, accounting_handle);
 }
 
-void freeUserList(usernode *l, void *accounting_handle)
+void freeUserList(struct trie *nodes, void *accounting_handle)
 {
-  if (!(*l))
-    return;
-  else
-    {
-      freeUserList(&((*l)->next), accounting_handle);
-      if (accounting_handle)
-	acct_logout(accounting_handle, (*l)->account, (*l)->session_id);
-      free((*l)->account);
-      freenamelist(&((*l)->filter_chains));
-      free(*l);
-      (*l)=NULL;
-    }
+  ;
 }
 

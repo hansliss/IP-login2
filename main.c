@@ -26,7 +26,6 @@
 #include <netdb.h>
 
 #include "conffile.h"
-#include "usernode.h"
 #include "engine.h"
 #include "config.h"
 #include "trace.h"
@@ -386,6 +385,20 @@ int initialize(struct config *conf)
     sscanf(tmpbuf2, "%i", &alarmtime);
   else
     alarmtime = 0;
+
+  if (conf_getvar(conf->conffile,"server",conf->servername,"statsloginterval",tmpbuf2,BUFSIZE)) {
+    sscanf(tmpbuf2, "%i", &(conf->statsloginterval));
+    if (conf_getvar(conf->conffile,"server",conf->servername,"statslogfile",tmpbuf2,BUFSIZE)) {
+      conf->statslogfile=fopen(tmpbuf2, "a");
+      if (!(conf->statslogfile))
+	{
+	  syslog(LOG_ERR, "Error opening stats log %s for append: %m", tmpbuf2);
+	  conf->statsloginterval=0;
+	}
+    }
+  }
+  else
+    conf->statsloginterval = 0;
 
   return 1;
 }

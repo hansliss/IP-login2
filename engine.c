@@ -33,7 +33,6 @@
 #include "filterchains.h"
 #include "arpping.h"
 #include "icmpping.h"
-#include "mymalloc.h"
 #include "accounting.h"
 #include "misc.h"
 
@@ -65,7 +64,7 @@ extern unsigned int alarmtime;
   'users' (in/out): The list of active users
   */
 
-void handle_connection(struct config *conf, int csocket, usernode *users)
+void handle_connection(struct config *conf, int csocket, struct trie *users)
 {
   struct sockaddr_in client_sa;
   char client_ip[16], clientname[1024];
@@ -146,16 +145,18 @@ void handle_connection(struct config *conf, int csocket, usernode *users)
 /*
   Retrive TX and RX counters for all the users
   */
-void retrieve_counters(struct config *conf, usernode users)
+void retrieve_counters(struct config *conf, struct trie *users)
 {
   counternode counters=NULL, tmpcounter;
-  usernode thisuser=users;
+  usernode thisuser;
   unsigned int interval;
   time_t logged_in;
-
+  unsigned int key;
+  trietrav_handle h=NULL;
+  trietrav_init(&h, users, 0);
   if (!strlen(conf->counterchain))
     return;
-  while (thisuser)
+  while (trietrav_next(&h, &key, (void *)(&thisuser), NULL))
     {
       if (!(tmpcounter=(counternode)malloc(sizeof(struct counternode_s))))
 	{
@@ -173,15 +174,14 @@ void retrieve_counters(struct config *conf, usernode users)
       tmpcounter->txcounter=0;
       tmpcounter->next=counters;
       counters=tmpcounter;
-      thisuser=thisuser->next;
     }
   if (fchain_getcounters(conf->counterchain, counters))
     {
       tmpcounter=counters;
       while (tmpcounter)
 	{
-	  thisuser=users;
-	  while (thisuser)
+	  trietrav_init(&h, users, 0);
+	  while (trietrav_next(&h, &key, (void *)(&thisuser), NULL))
 	    {
 	      if (!memcmp(&(thisuser->address), &(tmpcounter->address), sizeof(tmpcounter->address)))
 		{
@@ -212,7 +212,6 @@ void retrieve_counters(struct config *conf, usernode users)
 		  thisuser->rxcounter=tmpcounter->rxcounter;
 		  thisuser->txcounter=tmpcounter->txcounter;
 		}
-	      thisuser=thisuser->next;
 	    }
 	  tmpcounter=tmpcounter->next;
 	}
@@ -235,29 +234,29 @@ void retrieve_counters(struct config *conf, usernode users)
   'user' (in): All the users
   'ident' (in): An identity for ICMP echo request
   */
-void send_pings(socketnode *rawsockets, usernode users, int ident)
+void send_pings(socketnode *rawsockets, struct trie *users, int number_to_send, int ident)
 {
   static char tmpbuf[BUFSIZE];
-  usernode tmpuser=users;
-  while (tmpuser)
+  usernode tmpuser;
+  unsigned int key;
+  static trietrav_handle h=NULL;
+  if (!h)
+    trietrav_init(&h, users, 0);
+  while (number_to_send-- && trietrav_next(&h, &key, (void *)(&tmpuser), NULL))
     {
       switch (tmpuser->user_type)
 	{
 	case USER_TYPE_ARPPING:
 	  sprintf(tmpbuf,"ARP request to %s",inet_ntoa(tmpuser->address));
 	  trace_msg(tmpbuf);
-	  mymalloc_pushcontext("send_arpping()");
 	  send_arpping(rawsockets, tmpuser);
-	  mymalloc_popcontext();
-	  tmpuser->last_sent=time(NULL);
+	  time(&(tmpuser->last_sent));
 	  break;
 	case USER_TYPE_PING:
 	  sprintf(tmpbuf,"ICMP echo request to %s",inet_ntoa(tmpuser->address));
 	  trace_msg(tmpbuf);
-	  mymalloc_pushcontext("send_icmpping()");
 	  send_icmpping(rawsockets, tmpuser, ident);
-	  mymalloc_popcontext();
-	  tmpuser->last_sent=time(NULL);
+	  time(&(tmpuser->last_sent));
 	  break;
 	case USER_TYPE_NONE:
 	  break;
@@ -268,7 +267,8 @@ void send_pings(socketnode *rawsockets, usernode users, int ident)
 	  tmpuser->user_type=USER_TYPE_NONE;
 	  break;
 	}
-      tmpuser=tmpuser->next;
+      if (!h)
+	trietrav_init(&h, users, 0);
     }
 }
 
@@ -281,7 +281,7 @@ void send_pings(socketnode *rawsockets, usernode users, int ident)
   'users' (in): All the users
   'ident' (in): An identity for ICMP echo reply
   */
-void receive_replies(socketnode allsockets, usernode users, int ident, int timeout)
+void receive_replies(socketnode allsockets, struct trie *users, int ident, int timeout)
 {
   fd_set myfdset;
   int maxsock=-1, i;
@@ -358,9 +358,9 @@ void receive_replies(socketnode allsockets, usernode users, int ident, int timeo
 
 /* Ugly: If parameters are non-NULL, just save them to our local vars,
    otherwise save the state to the file, if a filename is available */
-void savestate_helper(int do_quit, char *n, usernode *s, socketnode *a, void *h)
+void savestate_helper(int do_quit, char *n, struct trie *s, socketnode *a, void *h)
 {
-  static usernode *users=NULL;
+  static struct trie *users=NULL;
   static char *filename=NULL;
   static socketnode *allsockets=NULL;
   static void *accounting_handle=NULL;
@@ -375,7 +375,7 @@ void savestate_helper(int do_quit, char *n, usernode *s, socketnode *a, void *h)
   else
     {
       if (filename)
-	do_save_state(-1, filename, *users, NULL);
+	do_save_state(-1, filename, users, NULL);
       if (do_quit)
 	{
 	  do_reset(users);
@@ -411,7 +411,7 @@ void savestate(int s)
     signal(SIGUSR1, savestate);
 }
 
-void removeuser(usernode *users, usernode user, struct config *conf, char *reason)
+void removeuser(struct trie *users, usernode user, struct config *conf, char *reason)
 {
   char tmpbuf[BUFSIZE];
   namelist tmplist;
@@ -449,6 +449,86 @@ void removeuser(usernode *users, usernode user, struct config *conf, char *reaso
   delUser(users,&user->address, conf->accounting_handle);
 }
 
+void printstats(struct tm *timestamp, struct config *conf, struct trie *users)
+{
+  int bytes; /* non-null bytes used */
+  int i, max, cells, holes_used;
+  float avdepth;
+  struct trie_stat *stat;
+  
+
+  if (!conf->statslogfile)
+    return;
+
+  stat = trie_stat_new();
+  trie_collect_stat(users, users->head, 0, stat);
+  max = MAX_BITS;
+  while (max >= 0 && stat->nodeSizes[max] == 0)
+    max--;
+
+  if (users->head != -1)
+    cells = 1; /* Root is always one cell */
+  else
+    cells = 0;
+  for (i = 1; i <= max; i++)
+    cells += (1<<i) * stat->nodeSizes[i];
+
+  bytes = sizeof(struct tnode) * ( stat->leaves + stat->internalNodes );
+  
+  if (stat->leaves)
+    avdepth=(float) stat->totDepth / stat->leaves;
+  else
+    avdepth=0;
+
+  holes_used=0;
+  for (i=0; i<users->holes_endptr; i++)
+    if (users->holes[i].len>0)
+      holes_used++;
+
+  /* columns:
+     date
+     time
+     number of users (leaves)
+     slabsize (bytes)
+     vsize (bytes)
+     rss (kb)
+     bytes (non-null cells, bytes)
+     cells (ref'd cells, bytes)
+     fillfactor (percent)
+     internalnodes (count)
+     nullpointers (count)
+     maxdepth (count)
+     avdepth (count)
+     holes-slabsize (bytes)
+     holes-used (bytes)
+     holes-fillfactor (percent)
+     pinginterval (microseconds)
+     */
+  fprintf(conf->statslogfile, "%04d%02d%02d %02d%02d %d %d %ld %d %d %d %.2f %d %d %d %.2f %d %d %.2f %d\n",
+	  timestamp->tm_year+1900,
+	  timestamp->tm_mon+1,
+	  timestamp->tm_mday,
+	  timestamp->tm_hour,
+	  timestamp->tm_min,
+	  stat->leaves,
+	  sizeof(struct tnode) * users->allocsz,
+	  getvsize(),
+	  getRSS(),
+	  bytes,
+	  sizeof(struct tnode) * users->endptr,
+	  (float)100*bytes/(sizeof(struct tnode) * users->allocsz),
+	  stat->internalNodes,
+	  stat->nullPointers,
+	  stat->maxDepth,
+	  avdepth,
+	  sizeof(struct hole_s) * users->holes_allocsz,
+	  sizeof(struct hole_s) * holes_used,
+	  (float)100*holes_used/users->holes_allocsz, 
+	  conf->defaultping.pinginterval);
+  fflush(conf->statslogfile);
+  free(stat);
+}
+
 /* See the header file */
 int mainloop(struct config *conf, int command_server_socket)
 {
@@ -456,13 +536,14 @@ int mainloop(struct config *conf, int command_server_socket)
   int ready=0;
   int scount, lastcount=0;
   unsigned int number_to_ping;
+  unsigned int key;
 
   struct sockaddr_in remote_addr;
   int csocket;
   struct timeval select_timeout;
   fd_set myfdset;
   int ident;
-  usernode users=NULL;
+  struct trie *users=trie_new();
   time_t missstat_last=0;
   int missstat_count=0;
 
@@ -471,15 +552,19 @@ int mainloop(struct config *conf, int command_server_socket)
   time_t stat_gc_last=0;
 
   time_t now=0, lastgc=0;
+  struct tm *now_tm;
+
+  time_t laststatprint=0;
+
   struct timeb last_accept={0,0}, lastcycle, thiscycle;
 
   socketnode allsockets=NULL, tmpsock;
 
   static char tmpbuf[BUFSIZE];
   namelist tmplist, tmplist2;
-  usernode tmpuser, tmpuser2, tmpuser3;
+  usernode tmpuser, tmpuser3;
+  trietrav_handle h=NULL, h2=NULL;
 
-  mymalloc_pushcontext("mainloop()");
   fchain_init();
   tmplist=NULL;
   if (conf_getvar(conf->conffile,"server",conf->servername,"flush_on_start",tmpbuf,sizeof(tmpbuf)) &&
@@ -501,10 +586,10 @@ int mainloop(struct config *conf, int command_server_socket)
 
   /* If 'loadfile' is non-empty, load state from the file */
   if (strlen(conf->loadfile)>0)
-    do_load_state(-1, conf, conf->loadfile, &users, &(conf->defaultping.ping_source), conf->accounting_handle, NULL);
+    do_load_state(-1, conf, conf->loadfile, users, &(conf->defaultping.ping_source), conf->accounting_handle, NULL);
 
   /* Prepare for saving functionality - just save the filename */
-  savestate_helper(0, conf->loadfile, &users, &allsockets, conf->accounting_handle);
+  savestate_helper(0, conf->loadfile, users, &allsockets, conf->accounting_handle);
   signal(SIGUSR1, savestate);
   signal(SIGUSR2, savestate);
   signal(SIGTERM, savestate);
@@ -541,7 +626,7 @@ int mainloop(struct config *conf, int command_server_socket)
 		  if ((csocket=accept(command_server_socket,
 				      (struct sockaddr *)&remote_addr,
 				      &addr_len))!=-1)
-		    handle_connection(conf, csocket, &users);
+		    handle_connection(conf, csocket, users);
 		  else if (errno != EINTR)
 		    syslog(LOG_ERR,"accept(): %m");
 		}
@@ -558,17 +643,16 @@ int mainloop(struct config *conf, int command_server_socket)
       /********* Receive any pending PING replies *********/
       receive_replies(allsockets, users, ident, 250);
 
-      scount=0;
-      tmpuser=users;
-
       time(&now);
+      scount=0;
+      trietrav_init(&h, users, 0);
 #if 0
       if (((unsigned long)(now-lastgc)) > GC_PERIOD)
 #else
 	if (1)
 #endif
 	  {
-	    while (tmpuser)
+	    while (trietrav_next(&h, &key, (void *)(&tmpuser), NULL))
 	      {
 		/* Check first if we consider the last PING missed */
 		if (tmpuser->last_checked_send != tmpuser->last_sent)
@@ -598,11 +682,12 @@ int mainloop(struct config *conf, int command_server_socket)
 		    if (missstat_count<0)
 		      missstat_count=0;
 
-		    removeuser(&users, tmpuser, conf, "Timeout");
+		    removeuser(users, tmpuser, conf, "Timeout");
 
 		    /* ..then start over instead of trying to continue
 		       in the modified list */
-		    tmpuser=users;
+		    trietrav_cleanup(&h);
+		    trietrav_init(&h, users, 0);
 		    scount=0;
 		  }
 		else /* if (..missed..) */
@@ -614,10 +699,9 @@ int mainloop(struct config *conf, int command_server_socket)
 			tmpuser->block_installed=0;
 			tmpuser->statmit_count=0;
 		      }
-		    tmpuser=tmpuser->next;
 		    scount++;
 		  }
-	      } /* while (tmpuser) */
+	      } 
 	    if (scount!=lastcount)
 	      {
 		recalc(&(conf->defaultping), conf->logout_timeout, scount);
@@ -636,33 +720,30 @@ int mainloop(struct config *conf, int command_server_socket)
 
       if ((now - missstat_last) > (MISSSTATPERIOD * 60))
 	{
-	  syslog(LOG_DEBUG, "Missed %d replies in the last %d minute%s", missstat_count, MISSSTATPERIOD, (MISSSTATPERIOD>1)?"s":"");
+	  if (missstat_count>0)
+	    syslog(LOG_DEBUG, "Missed %d replies in the last %d minute%s", missstat_count, MISSSTATPERIOD, (MISSSTATPERIOD>1)?"s":"");
 	  missstat_count=0;
 	  missstat_last=now;
-
-
-
 	}
       if (conf->counter_interval && (now - counters_last) > conf->counter_interval)
 	{
 	  retrieve_counters(conf, users);
 	  counters_last=now;
 
-	  tmpuser3=users;
-	  while (tmpuser3)
+	  trietrav_init(&h2, users, 0);
+	  while (trietrav_next(&h, &key, (void *)(&tmpuser3), NULL))
 	    {
 	      if (tmpuser3->idle_logout && ((conf->rxidle && tmpuser3->rxidle >= conf->rxidle)
 					    || (conf->txidle && tmpuser3->txidle >= conf->txidle)))
 		{
-		  removeuser(&users, tmpuser3, conf, "Idle");
+		  removeuser(users, tmpuser3, conf, "Idle");
 		  scount=0;
 		  recalc(&(conf->defaultping), conf->logout_timeout, scount);
 		  lastcount=scount;
-		  tmpuser3 = users;
+		  trietrav_cleanup(&h2);
+		  trietrav_init(&h2, users, 0);
 		  continue;
 		}
-
-	      tmpuser3=tmpuser3->next;
 	    }
 	}
 
@@ -679,36 +760,28 @@ int mainloop(struct config *conf, int command_server_socket)
 	number_to_ping=0;
       if (number_to_ping>0)
 	{
-	  /* Extract 'number_to_ping' users from the beginning of the list */
-	  tmpuser=users;
-	  tmpuser2=NULL;
-	  while (users && (number_to_ping--))
-	    {
-	      tmpuser2=users;
-	      users=users->next;
-	    }
-	  if (tmpuser2)
-	    tmpuser2->next=NULL;
-
-	  /* Send pings only to those users */
-	  send_pings(&allsockets, tmpuser, ident);
-
-	  /* And then link them onto the end of the list */
-	  if (!users)
-	    users=tmpuser;
-	  else
-	    {
-	      tmpuser2=users;
-	      while (tmpuser2->next)
-		tmpuser2=tmpuser2->next;
-	      tmpuser2->next=tmpuser;
-	    }
+	  /* Send pings only to number_to_ping users */
+	  send_pings(&allsockets, users, number_to_ping, ident);
 	  lastcycle=thiscycle;
 	}
+
+      /* Maybe log statistics */
+      if (conf->statsloginterval > 0) {
+	time(&now);
+	now_tm=localtime(&now);
+	if ((now_tm->tm_min % conf->statsloginterval)==0) {
+	  if ((now - laststatprint) / 60 >= conf->statsloginterval) {
+	    printstats(now_tm, conf, users);
+	    laststatprint=now;
+	  }
+	}
+      }
+
+
       usleep(LOOP_SLEEP);
     } /* while (!ready) */
   /* This will not happen in this version */
-  do_reset(&users);
+  do_reset(users);
   while (allsockets)
     {
       tmpsock=allsockets;
@@ -716,7 +789,6 @@ int mainloop(struct config *conf, int command_server_socket)
       close(tmpsock->socket);
       free(tmpsock);
     }
-  mymalloc_popcontext();
   return 1;
 }
 

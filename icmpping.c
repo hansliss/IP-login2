@@ -24,7 +24,6 @@
 #include "config.h"
 #include "socketnode.h"
 #include "usernode.h"
-#include "mymalloc.h"
 
 #include "trace.h"
  
@@ -145,13 +144,11 @@ int send_icmpping(socketnode *rawsockets, usernode user, int ident)
 
   if (!tmpsock)
     {
-      mymalloc_setperm();
       if (!(tmpsock=(socketnode)malloc(sizeof(struct socknode))))
 	{
 	  syslog(LOG_ERR, "malloc(): %m");
 	  return 0;
 	}
-      mymalloc_resetperm();
       tmpsock->ifindex=user->ifindex;
       tmpsock->type=user->user_type;
       if ((tmpsock->socket = socket(AF_INET, SOCK_RAW, 1)) < 0)
@@ -189,7 +186,7 @@ int send_icmpping(socketnode *rawsockets, usernode user, int ident)
 int recv_icmpreply(unsigned char *buf,
 		   int len,
 		   struct sockaddr_in *from,
-		   usernode users,
+		   struct trie *users,
 		   int ident)
 {
   struct ip *inpack_ip = (struct ip *)buf;

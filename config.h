@@ -14,6 +14,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include <stdio.h>
 #include "autoconfig.h"
 #include <netinet/in.h>
 
@@ -63,6 +64,8 @@ struct pingconfig
   'stat_blocktime' : Number of seconds user is held in the block chain
   'stat_blockgc' : Number of seconds between automatic cleanups of the block chain
   'counterchain' : Chain to consult for retrieving TX and RX counters
+  'statslogfile' : File in which to log periodical daemon statistics
+  'statsloginterval' : Number of minutes between statistics log entries;
   */
 
 struct config
@@ -87,6 +90,8 @@ struct config
   unsigned int rxidle, txidle;
   struct network *idlenetworks;
   unsigned int counter_interval;
+  FILE *statslogfile;
+  int statsloginterval;
 };
 
 char *params(struct config *conf);

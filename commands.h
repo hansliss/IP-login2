@@ -23,7 +23,7 @@
   Prerequisites (apart from the obvious):
   * syslog() is used so openlog() before calling this
   */
-void do_load_state(int csocket, struct config *conf, char *filename, usernode *users,
+void do_load_state(int csocket, struct config *conf, char *filename, struct trie *users,
 		   struct sockaddr_in *ping_source, void *accounting_handle, HLCRYPT_HANDLE h);
 
 /*
@@ -33,7 +33,7 @@ void do_load_state(int csocket, struct config *conf, char *filename, usernode *u
   Prerequisites (apart from the obvious):
   * syslog() is used so openlog() before calling this
   */
-void do_save_state(int csocket, char *filename, usernode users, HLCRYPT_HANDLE h);
+void do_save_state(int csocket, char *filename, struct trie *users, HLCRYPT_HANDLE h);
 
 /*
   Receive a command on the socket 'csocket' (in) for an (already authenticated)
@@ -43,10 +43,10 @@ void do_save_state(int csocket, char *filename, usernode users, HLCRYPT_HANDLE h
   Prerequisites (apart from the obvious):
   * syslog() is used so openlog() before calling this
   */
-void docommand(struct config *conf, int csocket, char *clientname, usernode *users, HLCRYPT_HANDLE h);
+void docommand(struct config *conf, int csocket, char *clientname, struct trie *users, HLCRYPT_HANDLE h);
 
 /*
   Reset to basic state, removing all filter chain rules and
   all user nodes in 'users' (in/out).
   */
-void do_reset(usernode *users);
+void do_reset(struct trie *users);

@@ -110,8 +110,8 @@ Count logged-in clients.
 Get RSS (debug).
 .It vsize
 Get vsize (debug).
-.It memdebug Ar {0,1}
-Mem usage debugging on or off.
+.It dumptrie
+Dump the usernode LPC-trie (debug).
 .It addblock Ar address Ar chain[,...]
 Add tcp block (DENY rule) for address
 .Ar address
@@ -147,7 +147,7 @@ is a bit of a hack. It should be replaced with something slightly saner.
 .Xr iladmin 8 ,
 .Xr ilcmd 8 ,
 .Xr ilcount 8 ,
-.Xr iplogin2_conffile 5
+.Xr iplogin2-conffile 5
 .Sh HISTORY
 .Nm iplogin2
 was developed as a replacement for

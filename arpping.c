@@ -26,7 +26,6 @@
 #include "config.h"
 #include "usernode.h"
 #include "socketnode.h"
-#include "mymalloc.h"
 
 #include "trace.h"
  
@@ -97,13 +96,11 @@ int send_arpping(socketnode *rawsockets, usernode user)
 
   if (!tmpsock)
     {
-      mymalloc_setperm();
       if (!(tmpsock=(socketnode)malloc(sizeof(struct socknode))))
 	{
 	  syslog(LOG_ERR, "malloc(): %m");
 	  return 0;
 	}
-      mymalloc_resetperm();
       tmpsock->ifindex=user->ifindex;
       tmpsock->type=user->user_type;
       if ((tmpsock->socket = socket(PF_PACKET, SOCK_DGRAM, 0)) < 0)
@@ -179,7 +176,7 @@ int send_arpping(socketnode *rawsockets, usernode user)
   code by Robert Olsson, SLU.
   */
 int recv_arpreply(unsigned char *buf, int len,
-		  struct sockaddr_ll *from, usernode users)
+		  struct sockaddr_ll *from, struct trie *users)
 {
   struct arphdr *ah = (struct arphdr*)buf;
   unsigned char *p = (unsigned char *)(ah+1);

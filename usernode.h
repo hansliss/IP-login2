@@ -19,6 +19,7 @@
 #include <linux/if_arp.h>
 #include "varlist.h"
 #include "config.h"
+#include "trie.h"
 
 /************* List handling code **************/
 
@@ -95,8 +96,6 @@ typedef struct susernode
   /* User should be logged out when idle? */
   unsigned int idle_logout;
 
-  /* Link to next */
-  struct susernode *next;
 } *usernode;
 
 /*
@@ -117,7 +116,7 @@ typedef struct susernode
   Note: This function does not check for duplicates. If a duplicate
   is created, the first one in the list will override any others.
   */
-usernode addUser(usernode *l, struct config *conf, char *account, char *session_id, int user_type,
+usernode addUser(struct trie *nodes, struct config *conf, char *account, char *session_id, int user_type,
 		       struct in_addr *address, int ifindex, char *ifname,
 		       struct in_addr *source, namelist chains, time_t added,
 		       void *accounting_handle);
@@ -127,24 +126,24 @@ usernode addUser(usernode *l, struct config *conf, char *account, char *session_
 
   Returns the usernode or NULL if not found.
   */
-usernode findUser(usernode l, struct in_addr *address);
+usernode findUser(struct trie *nodes, struct in_addr *address);
 
 /*
   Find a user with the account name 'account' (in) in the list 'l' (in).
 
   Returns the usernode or NULL if not found.
   */
-usernode findUser_account(usernode l, char *account);
+usernode findUser_account(struct trie *nodes, char *account);
 
 /*
   Delete a user node in list 'l' (in/out) with address 'address' (in).
  */
-void delUser(usernode *l, struct in_addr *address, void *accounting_handle);
+void delUser(struct trie *nodes, struct in_addr *address, void *accounting_handle);
 
 /*
   Release all memory occupied by the list 'l' (in/out) and set it to
   NULL.
   */
-void freeUserList(usernode *l, void *accounting_handle);
+void freeUserList(struct trie *nodes, void *accounting_handle);
 
 #endif

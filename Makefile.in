@@ -14,7 +14,7 @@ RANLIB = @RANLIB@
 STRIP = @STRIP@
 AR = @AR@
 LIBTOOL = @LIBTOOL@
-DEFINES = @DEFS@ -DNO_SHARED_LIBS=1 -DLINUX -DPACKAGE=\"$(PACKAGE)\" -DVERSION=\"$(VERSION)\"
+DEFINES = @DEFS@ -DNO_SHARED_LIBS=1 -DLINUX -DPACKAGE=\"$(PACKAGE)\" -DVERSION=\"$(VERSION)\" -DHAVE_VARLIST_H
 CFLAGS = -I. @CFLAGS@ $(DEFINES)
 LDFLAGS = @LDFLAGS@ -L/usr/local/lib
 LIBS = @LIBS@
@@ -33,8 +33,8 @@ CFLAGS+=-static
 DISTFILES =
 
 IPLOGIN2_TARGET=iplogin2
-IPLOGIN2_SOURCES=main.c engine.c find_interface.c misc.c filterchains.c filterchains2.c commands.c icmpping.c arpping.c config.c accounting.c trace.c mymalloc.c usernode.c stringfunc.c varlist.c conffile.c sha1.c md4c.c md5c.c makeaddress.c rijndael-api-fst.c rijndael-alg-fst.c b64.c uu_aes.c genseed.c hlcrypt.c
-IPLOGIN2_OBJS=main.o engine.o find_interface.o misc.o filterchains.o filterchains2.o commands.o icmpping.o arpping.o config.o accounting.o trace.o mymalloc.o usernode.o stringfunc.o varlist.o conffile.o sha1.o md4c.o md5c.o makeaddress.o rijndael-api-fst.o rijndael-alg-fst.o b64.o uu_aes.o genseed.o hlcrypt.o 
+IPLOGIN2_SOURCES=main.c engine.c find_interface.c misc.c filterchains.c filterchains2.c commands.c icmpping.c arpping.c config.c accounting.c trace.c usernode.c stringfunc.c varlist.c conffile.c sha1.c md4c.c md5c.c makeaddress.c rijndael-api-fst.c rijndael-alg-fst.c b64.c uu_aes.c genseed.c hlcrypt.c trie.c
+IPLOGIN2_OBJS=main.o engine.o find_interface.o misc.o filterchains.o filterchains2.o commands.o icmpping.o arpping.o config.o accounting.o trace.o usernode.o stringfunc.o varlist.o conffile.o sha1.o md4c.o md5c.o makeaddress.o rijndael-api-fst.o rijndael-alg-fst.o b64.o uu_aes.o genseed.o hlcrypt.o trie.o
 MANPAGES8 += iplogin2.8
 
 IPLOGIN2_CONFFILE=iplogin2.conf
