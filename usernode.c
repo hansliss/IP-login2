@@ -40,7 +40,8 @@ usernode addUser(usernode *l, char *account, char *session_id,
 	      strcpy(new_user->account, account);
 	      new_user->user_type=user_type;
 	      new_user->ifindex=ifindex;
-	      strncpy(new_user->ifname, ifname, sizeof(new_user->ifname));
+	      memset(new_user->ifname, 0, sizeof(new_user->ifname));
+	      strncpy(new_user->ifname, ifname, sizeof(new_user->ifname-1));
 	      memcpy(&(new_user->address),address, sizeof(struct in_addr));
 	      memcpy(&(new_user->source_address),source,
 		     sizeof(struct in_addr));
