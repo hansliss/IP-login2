@@ -307,6 +307,7 @@ int iptables_read_counters(char *table, char *chain, counternode counters)
 	}
       this = iptc_next_rule(this, &handle);
     }
+  iptc_commit(&handle);
   free_handle(&handle);
   return 1;
 }

@@ -464,10 +464,6 @@ int mainloop(struct config *conf, int command_server_socket)
   namelist tmplist, tmplist2;
   usernode tmpuser, tmpuser2, tmpuser3;
 
-#ifdef STATS
-  FILE *statfile=fopen("iplogin.statistics","w");
-#endif
-
   mymalloc_pushcontext("mainloop()");
   fchain_init();
   tmplist=NULL;

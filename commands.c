@@ -480,6 +480,7 @@ void send_single_stat_one(int csocket, usernode thisnode, HLCRYPT_HANDLE h)
       offset += sprintf(tmpbuf+offset, "Type: arpping ");
       break;
     default:
+      break;
     }
   offset += sprintf(tmpbuf+offset, "Miss/Recv: %d/%d ", thisnode->missed, thisnode->hits);
   hlcrypt_Send(csocket, tmpbuf, h);
