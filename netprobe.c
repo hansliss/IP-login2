@@ -445,7 +445,10 @@ int do_icmpprobe(struct in_addr *src, struct in_addr *dst)
   return 1;
 }
 
-
+void usage(char *progname)
+{
+  fprintf(stderr, "Usage: %s [-n <probe count>] <host> [<host> ...]\n", progname);
+}
 
 int main(int argc, char *argv[])
 {
@@ -459,11 +462,24 @@ int main(int argc, char *argv[])
                          0, NULL, NULL, NULL};
   int idx;
   int i, t, r, j;
+  int repeat_count=1;
+  int o;
   static char typetext[32], ip[64];
   static char tmpbuf[1024], tmpbuf2[1024];
   s.s_addr=INADDR_ANY;
   openlog("test_netlink", LOG_PERROR|LOG_PID, LOG_USER);
-  for (i=1; i<argc; i++)
+  while ((o=getopt(argc, argv, "n:"))!=-1)
+    switch (o)
+      {
+      case 'n':
+	repeat_count=atoi(optarg);
+	break;
+      default:
+	usage(argv[0]);
+	return -1;
+	break;
+      }
+  for (i=optind; i<argc; i++)
     {
       if ((r=getaddrinfo(argv[i], NULL, &hints, &dest))!=0)
 	{
@@ -505,11 +521,11 @@ int main(int argc, char *argv[])
 	      switch(t)
 		{
 		case USER_TYPE_ARPPING:
-		  for (j=0; j<10; j++)
+		  for (j=0; j<repeat_count; j++)
 		    do_arpprobe(idx, src, dst);
 		  break;
 		case USER_TYPE_PING:
-		  for (j=0; j<10; j++)
+		  for (j=0; j<repeat_count; j++)
 		    do_icmpprobe(src, dst);
 		  break;
 		}
