@@ -271,6 +271,7 @@ PACKAGE_STRING=
 PACKAGE_BUGREPORT=
 
 ac_unique_file="main.c"
+ac_default_prefix=/opt/iplogin2
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>
@@ -1260,7 +1261,8 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 PACKAGE=iplogin2
-VERSION=2.2.5
+VERSION=2.2.6
+
           ac_config_headers="$ac_config_headers autoconfig.h"
 
 ac_ext=c
@@ -2898,7 +2900,6 @@ if test ! -z "$opensslpath"; then
 fi
 
 
-echo $withparm
 if test "${ac_cv_header_hl_h+set}" = set; then
   echo "$as_me:$LINENO: checking for hl.h" >&5
 echo $ECHO_N "checking for hl.h... $ECHO_C" >&6
