@@ -24,8 +24,8 @@ DISTFILES =
 
 TARGET=libhl.a
 LIBHEADER=hl.h
-SOURCES=hexdump.c stringfunc.c makeaddress.c varlist.c conffile.c hlcrypt.c b64.c
-OBJS=hexdump.o stringfunc.o makeaddress.o varlist.o conffile.o hlcrypt.o b64.o
+SOURCES=hexdump.c stringfunc.c makeaddress.c varlist.c conffile.c hlcrypt.c b64.c genseed.c md4c.c md5c.c sha1.c
+OBJS=hexdump.o stringfunc.o makeaddress.o varlist.o conffile.o hlcrypt.o b64.o genseed.o md4c.o md5c.o sha1.o
 LIB_OBJS=
 
 all: $(TARGET)

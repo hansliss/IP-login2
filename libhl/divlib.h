@@ -4,7 +4,7 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 
-void hexdump(FILE *fd, char *buf, int n);
+void hexdump(FILE *fd, unsigned char *buf, int n);
 
 /* Translate a dotted quad or a hostname to an IP address if
    possible. Return 0 if it fails, non-0 otherwise */

@@ -15,7 +15,6 @@
 #define READ_TIMEOUT 10000
 #define BUFSIZE 8192
 
-#if HAVE_LIBCRYPTO == 1
 
 /* Authentication and encryption data */
 unsigned char local_challenge[CHALLENGE_SIZE];
@@ -80,17 +79,54 @@ int readblock(int fd, int timeout, unsigned char *buf, int count)
   return 1;
 }
 
+char *hlcrypt_MD4(unsigned char *string,int slen)
+{
+  MD4_CTX c;
+  int i;
+  unsigned char md[16];
+  static char txtbuf[16*2+1];
+
+  MD4Init(&c);
+  MD4Update(&c,string,(unsigned long)slen);
+  MD4Final(&(md[0]), &c);
+#if 0
+  for (i=0; i<16; i++)
+    sprintf(&(txtbuf[i*2]),"%02x",md[i]);
+#endif
+  for (i=0; i<16; i++)
+    txtbuf[i]=md[i];
+  return txtbuf;
+}
+
+char *hlcrypt_MD5(unsigned char *string,int slen)
+{
+  MD5_CTX c;
+  int i;
+  unsigned char md[16];
+  static char txtbuf[16*2+1];
+
+  MD5Init(&c);
+  MD5Update(&c,string,(unsigned long)slen);
+  MD5Final(&(md[0]), &c);
+#if 0
+  for (i=0; i<16; i++)
+    sprintf(&(txtbuf[i*2]),"%02x",md[i]);
+#endif
+  for (i=0; i<16; i++)
+    txtbuf[i]=md[i];
+  return txtbuf;
+}
 
 char *hlcrypt_SHA1(unsigned char *string,int slen)
 {
-  SHA_CTX c;
+  SHA1Context c;
   int i;
   unsigned char md[SHA_DIGEST_LENGTH];
   static char txtbuf[SHA_DIGEST_LENGTH*2+1];
 
-  SHA1_Init(&c);
-  SHA1_Update(&c,string,(unsigned long)slen);
-  SHA1_Final(&(md[0]),&c);
+  SHA1Reset(&c);
+  SHA1Input(&c,string,(unsigned long)slen);
+  SHA1Result(&c, &(md[0]));
 #if 0
   for (i=0; i<SHA_DIGEST_LENGTH; i++)
     sprintf(&(txtbuf[i*2]),"%02x",md[i]);
@@ -397,4 +433,3 @@ int hlcrypt_freeHandle(HLCRYPT_HANDLE *h)
   return 1;
 }
 
-#endif

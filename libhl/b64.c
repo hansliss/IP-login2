@@ -48,12 +48,12 @@ int b64_encode(unsigned char *indata, int indatalen, char *result, int reslen)
       result[j+3]=PAD;
     }
   result[j+4]='\0';
-  return 1;
+  return (j+4);
 }
 
 int b64_decode(unsigned char *indata, int indatalen, char *result, int reslen)
 {
-  int i, j;
+  int i, j, r=0;
   unsigned char A,B,C,D,a,b,c;
   if ((indatalen % 4)!=0)
     return 0;
@@ -77,19 +77,23 @@ int b64_decode(unsigned char *indata, int indatalen, char *result, int reslen)
 	      if (D != 65)
 		{
 		  c |= D;
+		  result[j+2]=c;
+		  r=j+3;
 		}
-	      result[j+2]=c;
-	      result[j+3]='\0';
+	      else
+		r=j+2;
+	      result[j+1]=b;
 	    }
 	  else
-	    result[j+2]='\0';
-	  result[j+1]=b;
+	    r=j+1;
+	  result[j]=a;
 	}
       else
-	result[j+1]='\0';
-      result[j]=a;
+	r=j;
     }
   if (i < (indatalen - 3))
     return 0;
-  return 1;
+  result[r]='\0';
+  return r;
 }
+

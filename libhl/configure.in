@@ -18,40 +18,6 @@ AC_PROG_LN_S
 
 dnl Checks for libraries.
 
-AC_CHECK_HEADER(openssl/sha.h, ,[opensslpath="/usr/local/ssl"])
-
-dnl Checks for header files.
-dnl --with-openssl
-
-AC_ARG_WITH(openssl,
-[  --with-openssl=DIR      point out where OpenSSL is installed],
-[case "$withval" in
-        no) opensslpath=""
-		dontusessl=1
-                ;;
-        yes)
-                ;;
-        /*|\\*)
-                opensslpath="$withval"
-                ;;
-        *)
-                opensslpath="/$withval"
-                ;;
-esac
-])dnl
-
-AC_SUBST(opensslpath)dnl
-
-if test ! -z "$opensslpath"; then
-        CFLAGS="$CFLAGS -I$opensslpath/include"
-        CPPFLAGS="$CPPFLAGS -I$opensslpath/include"
-        LDFLAGS="$LDFLAGS -L$opensslpath/lib"
-fi
-
-if test "x$dontusessl" != "x1" ; then
-	AC_LIBRARY_CRYPTO
-fi
-
 AC_HEADER_STDC
 AC_CHECK_HEADERS(\
 	arpa/inet.h\
@@ -59,7 +25,6 @@ AC_CHECK_HEADERS(\
 	errno.h\
 	netdb.h\
 	netinet/in.h\
-	openssl/sha.h\
 	stdio.h\
 	stdlib.h\
 	string.h\
@@ -68,8 +33,7 @@ AC_CHECK_HEADERS(\
 	sys/time.h\
 	syslog.h\
 	time.h\
-	unistd.h
-)
+	unistd.h, ,AC_MSG_ERROR([Missing header file]))
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

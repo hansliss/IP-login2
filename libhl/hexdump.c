@@ -5,14 +5,19 @@
 
 int printable(unsigned char c)
 {
-  return ((c>=32) && (c!=127));
+  return (((c>=32) && (c<127)) || ((c>=160) && (c<=255)));
 }
 
-void hexdump(FILE *fd, char *buf, int n)
+void hexdump(FILE *fd, unsigned char *buf, int n)
 {
   int i,j,m;
   j=0;
-  m=n + 16 - (n % 16);
+  if (!n)
+    return;
+  if (n%16)
+    m=n + 16 - (n % 16);
+  else
+    m=n;
   for (i=0; i<m; i++)
     {
       if (!(i%16))
@@ -32,12 +37,14 @@ void hexdump(FILE *fd, char *buf, int n)
 		  else
 		    fputc(' ',fd);
 		}
-	      fputc('\n',fd);
+	      if (i<n)
+		fputc('\n',fd);
 	    }
-	  fprintf(fd,"%04X: ",i);
+	  if (i<n)
+	    fprintf(fd,"%04X: ",i);
 	}
       if (i<n)
-	fprintf(fd," %02X",buf[i]);
+	fprintf(fd," %02X",(unsigned char)(buf[i]));
       else
 	fprintf(fd,"   ");
     }
@@ -55,6 +62,6 @@ void hexdump(FILE *fd, char *buf, int n)
 	fputc(' ',fd);
     }
   fputc('\n',fd);
-  fflush(stdout);
+  fflush(fd);
 }
 

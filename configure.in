@@ -1,6 +1,6 @@
 AC_INIT(main.c)
 PACKAGE=iplogin2
-VERSION=2.2.7
+VERSION=2.2.8
 AC_PREFIX_DEFAULT(/opt/iplogin2)
 AC_CONFIG_HEADER(autoconfig.h)
 AC_PROG_CC
@@ -18,34 +18,7 @@ AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 AC_PROG_LN_S
 
-AC_CHECK_HEADER(openssl/sha.h, ,[opensslpath="/usr/local/ssl"])
-
-dnl --with-openssl
-
-AC_ARG_WITH(openssl,
-[  --with-openssl=DIR      point out where OpenSSL is installed],
-[case "$withval" in
-        no) opensslpath=""
-		AC_MSG_ERROR([You need OpenSSL to build this])
-                ;;
-        yes)
-                ;;
-        *)
-                opensslpath="$withval"
-                ;;
-esac
-])dnl
-
-AC_SUBST(opensslpath)dnl
-
-if test ! -z "$opensslpath"; then
-        CFLAGS="$CFLAGS -I$opensslpath/include"
-        CPPFLAGS="$CPPFLAGS -I$opensslpath/include"
-        LDFLAGS="$LDFLAGS -L$opensslpath/lib"
-	withparm="--with-openssl=$opensslpath"
-fi
-
-AC_LOCAL_LIBS($withparm)
+AC_LOCAL_LIBS
 
 dnl --with-libwrap
 libwrappath="/usr"
@@ -117,11 +90,8 @@ fi
 AC_SUBST(iptspath)dnl
 
 dnl Checks for libraries.
-AC_CHECK_LIB(crypto,main, ,AC_MSG_ERROR([I need libcrypto.a from OpenSSL to build]))
 AC_CHECK_LIB(resolv,main)
 AC_CHECK_LIB(dl,main, ,AC_MSG_RESULT([************ No dynloader (libdl.a) found - disabling accounting]))
-
-AC_CHECK_HEADER(openssl/sha.h, ,[opensslpath="/usr/local/ssl"])
 
 dnl Checks for header files.
 AC_HEADER_STDC

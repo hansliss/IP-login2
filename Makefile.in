@@ -11,7 +11,7 @@ srcdir = @srcdir@
 CC = @CC@
 DEFINES = @DEFS@ -DNO_SHARED_LIBS=1 -DLINUX -DPACKAGE=\"$(PACKAGE)\" -DVERSION=\"$(VERSION)\"
 CFLAGS = -I. @CFLAGS@ $(DEFINES)
-LDFLAGS = @LDFLAGS@ -L/usr/local/lib -L/usr/local/ssl/lib
+LDFLAGS = @LDFLAGS@ -L/usr/local/lib
 LIBS = -lhl @LIBS@
 INSTALL = @INSTALL@
 HLLIB=@HLLIB@

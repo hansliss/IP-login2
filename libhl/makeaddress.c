@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <string.h>
 
 #include "config.h"
 #include "divlib.h"
@@ -11,12 +10,6 @@
 int makeaddress(char *name_or_ip, struct in_addr *res)
 {
   struct hostent *listen_he;
-  if (!strcasecmp(name_or_ip, "any"))
-    {
-      memcpy(res, INADDR_ANY, sizeof(res));
-      return 1;
-    }
-
   if (!inet_aton(name_or_ip,res))
     {
       if (!(listen_he=gethostbyname(name_or_ip)))

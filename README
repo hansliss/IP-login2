@@ -49,13 +49,6 @@ the libraries to Makefile.in (LIBS) and re-run 'configure' - or re-run
 'configure' with the '--without-libwrap' option to turn it off
 
 ------------------------------------------------------
-OpenSSL
-
-You need to have OpenSSL libraries installed to compile iplogin2, too.
-If they're not in a standard place, you can point configure to them,
-with '--with-openssl=<dir>'.
-
-------------------------------------------------------
 Accounting
 
 IP-login2 supports a dynlib-based accounting mechanism for the

@@ -56,7 +56,6 @@
 #define HAVE_SYS_STATVFS_H 0 /* <sys/statvfs.h> */
 #define HAVE_TCPD_H 0 /* tcpd.h - libwrap */
 
-#define HAVE_LIBCRYPTO 0 /* libwrap.a */
 #define HAVE_LIBWRAP 0 /* libwrap.a */
 #define HAVE_LIBDL 0 /* libdl.a */
 

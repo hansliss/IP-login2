@@ -4,7 +4,7 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 
-void hexdump(FILE *fd, char *buf, int n);
+void hexdump(FILE *fd, unsigned char *buf, int n);
 
 /* Translate a dotted quad or a hostname to an IP address if
    possible. Return 0 if it fails, non-0 otherwise */
@@ -28,10 +28,10 @@ void cleanupstring(char *string);
   */
 void chop(char *string);
 
-/* Encode/decode B64 data */
-
+/* Base64 encode/decode */
 int b64_encode(unsigned char *indata, int indatalen, char *result, int reslen);
 int b64_decode(unsigned char *indata, int indatalen, char *result, int reslen);
+
 #endif
 #ifndef VARLIST_H
 #define VARLIST_H
@@ -189,11 +189,211 @@ int conf_set(char *conffilename, char *type, char *label,
 
 
 #endif
+
+#ifndef GENSEED_H
+#define GENSEED_H
+char	*genseed(void);
+#endif
+
+/* GLOBAL.H - RSAREF types and constants
+ */
+
+/* PROTOTYPES should be set to one if and only if the compiler supports
+   function argument prototyping.
+   The following makes PROTOTYPES default to 0 if it has not already
+   been defined with C compiler flags.
+ */
+
+#ifndef _RSAREF_GLOBAL_H
+#define _RSAREF_GLOBAL_H
+
+#ifndef PROTOTYPES
+#define PROTOTYPES 0
+#endif
+
+/* POINTER defines a generic pointer type */
+typedef unsigned char *POINTER;
+
+/* UINT2 defines a two byte word */
+typedef unsigned short int UINT2;
+
+/* UINT4 defines a four byte word */
+typedef unsigned long int UINT4;
+
+/* PROTO_LIST is defined depending on how PROTOTYPES is defined above.
+   If using PROTOTYPES, then PROTO_LIST returns the list, otherwise it
+   returns an empty list.
+ */
+
+#if PROTOTYPES
+#define PROTO_LIST(list) list
+#else
+#define PROTO_LIST(list) ()
+#endif
+
+#endif
+/* MD4.H - header file for MD4C.C
+ */
+
+/* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
+   rights reserved.
+
+   License to copy and use this software is granted provided that it
+   is identified as the "RSA Data Security, Inc. MD4 Message-Digest
+   Algorithm" in all material mentioning or referencing this software
+   or this function.
+
+   License is also granted to make and use derivative works provided
+   that such works are identified as "derived from the RSA Data
+   Security, Inc. MD4 Message-Digest Algorithm" in all material
+   mentioning or referencing the derived work.
+
+   RSA Data Security, Inc. makes no representations concerning either
+   the merchantability of this software or the suitability of this
+   software for any particular purpose. It is provided "as is"
+   without express or implied warranty of any kind.
+
+   These notices must be retained in any copies of any part of this
+   documentation and/or software.
+ */
+
+#ifndef _MD4_H
+#define _MD4_H
+
+/* MD4 context. */
+typedef struct {
+  UINT4 state[4];                                   /* state (ABCD) */
+  UINT4 count[2];        /* number of bits, modulo 2^64 (lsb first) */
+  unsigned char buffer[64];                         /* input buffer */
+} MD4_CTX;
+
+void MD4Init PROTO_LIST ((MD4_CTX *));
+void MD4Update PROTO_LIST
+  ((MD4_CTX *, unsigned char *, unsigned int));
+void MD4Final PROTO_LIST ((unsigned char [16], MD4_CTX *));
+
+#endif
+/* MD5.H - header file for MD5C.C
+ */
+
+/* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
+rights reserved.
+
+License to copy and use this software is granted provided that it
+is identified as the "RSA Data Security, Inc. MD5 Message-Digest
+Algorithm" in all material mentioning or referencing this software
+or this function.
+
+License is also granted to make and use derivative works provided
+that such works are identified as "derived from the RSA Data
+Security, Inc. MD5 Message-Digest Algorithm" in all material
+mentioning or referencing the derived work.
+
+RSA Data Security, Inc. makes no representations concerning either
+the merchantability of this software or the suitability of this
+software for any particular purpose. It is provided "as is"
+without express or implied warranty of any kind.
+
+These notices must be retained in any copies of any part of this
+documentation and/or software.
+ */
+
+#ifndef _MD5_H
+#define _MD5_H
+
+/* MD5 context. */
+typedef struct {
+  UINT4 state[4];                                   /* state (ABCD) */
+  UINT4 count[2];        /* number of bits, modulo 2^64 (lsb first) */
+  unsigned char buffer[64];                         /* input buffer */
+} MD5_CTX;
+
+void MD5Init PROTO_LIST ((MD5_CTX *));
+void MD5Update PROTO_LIST
+  ((MD5_CTX *, unsigned char *, unsigned int));
+void MD5Final PROTO_LIST ((unsigned char [16], MD5_CTX *));
+
+#endif
+/*
+ *  sha1.h
+ *
+ *  Description:
+ *      This is the header file for code which implements the Secure
+ *      Hashing Algorithm 1 as defined in FIPS PUB 180-1 published
+ *      April 17, 1995.
+ *
+ *      Many of the variable names in this code, especially the
+ *      single character names, were used because those were the names
+ *      used in the publication.
+ *
+ *      Please read the file sha1.c for more information.
+ *
+ */
+
+#ifndef _SHA1_H_
+#define _SHA1_H_
+
+#include <stdint.h>
+/*
+ * If you do not have the ISO standard stdint.h header file, then you
+ * must typdef the following:
+ *    name              meaning
+ *  uint32_t         unsigned 32 bit integer
+ *  uint8_t          unsigned 8 bit integer (i.e., unsigned char)
+ *  int_least16_t    integer of >= 16 bits
+ *
+ */
+
+#ifndef _SHA_enum_
+#define _SHA_enum_
+enum
+{
+    shaSuccess = 0,
+    shaNull,            /* Null pointer parameter */
+    shaInputTooLong,    /* input data too long */
+    shaStateError       /* called Input after Result */
+};
+#endif
+#define SHA1HashSize 20
+
+/*
+ *  This structure will hold context information for the SHA-1
+ *  hashing operation
+ */
+typedef struct SHA1Context
+{
+    uint32_t Intermediate_Hash[SHA1HashSize/4]; /* Message Digest  */
+
+    uint32_t Length_Low;            /* Message length in bits      */
+    uint32_t Length_High;           /* Message length in bits      */
+
+                               /* Index into message block array   */
+    int_least16_t Message_Block_Index;
+    uint8_t Message_Block[64];      /* 512-bit message blocks      */
+
+    int Computed;               /* Is the digest computed?         */
+    int Corrupted;             /* Is the message digest corrupted? */
+} SHA1Context;
+
+/*
+ *  Function Prototypes
+ */
+
+int SHA1Reset(  SHA1Context *);
+int SHA1Input(  SHA1Context *,
+                const uint8_t *,
+                unsigned int);
+int SHA1Result( SHA1Context *,
+                uint8_t Message_Digest[SHA1HashSize]);
+
+#endif
+
 #ifndef HLCRYPT_H
 #define HLCRYPT_H
 
-#if HAVE_LIBCRYPTO == 1
-#include <openssl/sha.h>
+#ifndef SHA_DIGEST_LENGTH
+#define SHA_DIGEST_LENGTH SHA1HashSize
+#endif
 
 #define PSIZE SHA_DIGEST_LENGTH
 #define KEYSIZE PSIZE
@@ -241,15 +441,15 @@ int hlcrypt_Receive(int s, unsigned char *string, int maxlen, int timeout, HLCRY
 int hlcrypt_MakeToken(char *buf, int bufsize);
 
 /*
-  Calculate SHA1() on a block
+  Calculate MD4, MD5 and SHA1 hashes on a block
   */
+char *hlcrypt_MD4(unsigned char *string,int slen);
+char *hlcrypt_MD5(unsigned char *string,int slen);
 char *hlcrypt_SHA1(unsigned char *string,int slen);
 
 /*
   Free a handle structure
   */
 int hlcrypt_freeHandle(HLCRYPT_HANDLE *h);
-
-#endif
 
 #endif

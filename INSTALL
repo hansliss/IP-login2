@@ -20,7 +20,6 @@ Options to configure:
   --prefix=PREFIX         install architecture-independent files in PREFIX
                           [/opt/iplogin2]
 
-  --with-openssl=DIR      	point out where OpenSSL is installed
   --with-libhl-sources=DIR      point out where the sources for libhl are located
   --with-libwrap=DIR      	Use libwrap and point out the parent to include/tcpd.h and lib/libwrap.a
   --with-iptables-sources=DIR   point out where the sources for iptables (>=1.2.5) are located

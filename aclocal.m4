@@ -81,7 +81,7 @@ if test ! -z "$libhlpath"; then
 	HLLIB_INCLUDE="$libhlpath/hl.h"
 	AC_SUBST(libhlpath)
 	LIBHL_DIR="$libhlpath"
-	(cd $libhlpath; ./configure $1 --prefix=$PREFIX)
+	(cd $libhlpath; ./configure --prefix=$PREFIX)
 fi
 
 AC_SUBST(LIBHL_DIR)

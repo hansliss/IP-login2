@@ -23,7 +23,6 @@ char *versionstring_parts[]=
 {
   PACKAGE,
   VERSION,
-  "[rich chain specs]",
   __DATE__,
   __TIME__
 };

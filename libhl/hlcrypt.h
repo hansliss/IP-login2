@@ -1,8 +1,14 @@
 #ifndef HLCRYPT_H
 #define HLCRYPT_H
 
-#include <openssl/sha.h>
-#include "hlcrypt.h"
+#include "rsaref_global.h"
+#include "md4.h"
+#include "md5.h"
+#include "sha1.h"
+
+#ifndef SHA_DIGEST_LENGTH
+#define SHA_DIGEST_LENGTH SHA1HashSize
+#endif
 
 #define CHALLENGE_SIZE 64
 #define PSIZE SHA_DIGEST_LENGTH
@@ -49,8 +55,10 @@ int hlcrypt_Receive(int s, unsigned char *string, int maxlen, int timeout, HLCRY
 int hlcrypt_MakeToken(char *buf, int bufsize);
 
 /*
-  Calculate SHA1() on a block
+  Calculate MD4, MD5 and SHA1 hashes on a block
   */
+char *hlcrypt_MD4(unsigned char *string,int slen);
+char *hlcrypt_MD5(unsigned char *string,int slen);
 char *hlcrypt_SHA1(unsigned char *string,int slen);
 
 /*
