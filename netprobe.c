@@ -209,12 +209,12 @@ int do_arpprobe(int ifindex, struct in_addr *src, struct in_addr *dst)
   if (arpprobe(s, src, dst, &me, &he) &&
       arpprobe(s, src, dst, &me, &he))
     {
-      printf("Received ARP reply from %02x", me.sll_addr[0]);
-      for (i=1; i<me.sll_halen; i++)
-	printf(":%02x", me.sll_addr[i]);
-      printf(" to %02x", he.sll_addr[0]);
+      printf("Received ARP reply from %02x", he.sll_addr[0]);
       for (i=1; i<he.sll_halen; i++)
 	printf(":%02x", he.sll_addr[i]);
+      printf(" to %02x", me.sll_addr[0]);
+      for (i=1; i<me.sll_halen; i++)
+	printf(":%02x", me.sll_addr[i]);
       printf("!\n");
 
       if (me.sll_family != AF_PACKET)
@@ -447,7 +447,7 @@ int do_icmpprobe(struct in_addr *src, struct in_addr *dst)
 
 void usage(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-n <probe count>] <host> [<host> ...]\n", progname);
+  fprintf(stderr, "Usage: %s [-n <probe count>] [-d <inter-packet delay>] <host> [<host> ...]\n", progname);
 }
 
 int main(int argc, char *argv[])
@@ -462,23 +462,28 @@ int main(int argc, char *argv[])
                          0, NULL, NULL, NULL};
   int idx;
   int i, t, r, j;
-  int repeat_count=1;
+  unsigned long repeat_count=1, interdelay=50;
   int o;
   static char typetext[32], ip[64];
   static char tmpbuf[1024], tmpbuf2[1024];
   s.s_addr=INADDR_ANY;
   openlog("test_netlink", LOG_PERROR|LOG_PID, LOG_USER);
-  while ((o=getopt(argc, argv, "n:"))!=-1)
+  while ((o=getopt(argc, argv, "n:d:"))!=-1)
     switch (o)
       {
       case 'n':
-	repeat_count=atoi(optarg);
+	repeat_count=atol(optarg);
+	break;
+      case 'd':
+	interdelay=atol(optarg);
 	break;
       default:
 	usage(argv[0]);
 	return -1;
 	break;
       }
+
+  printf("repeat count=%ld\ninter-packet delay=%ld\n", repeat_count, interdelay);
   for (i=optind; i<argc; i++)
     {
       if ((r=getaddrinfo(argv[i], NULL, &hints, &dest))!=0)
@@ -522,11 +527,19 @@ int main(int argc, char *argv[])
 		{
 		case USER_TYPE_ARPPING:
 		  for (j=0; j<repeat_count; j++)
-		    do_arpprobe(idx, src, dst);
+		    {
+		      do_arpprobe(idx, src, dst);
+		      if (interdelay)
+			usleep(interdelay);
+		    }
 		  break;
 		case USER_TYPE_PING:
 		  for (j=0; j<repeat_count; j++)
-		    do_icmpprobe(src, dst);
+		    {
+		      do_icmpprobe(src, dst);
+		      if (interdelay)
+			usleep(interdelay);
+		    }
 		  break;
 		}
 	    }
