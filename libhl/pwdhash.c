@@ -146,7 +146,7 @@ int hlcrypt_makePwdHash(char *algorithm, char *passwd, char *outbuf, int outbufl
       SALT[0]=(rnd[0] % 26) + 'A';
       SALT[1]=(rnd[1] % 26) + 'A';
       SALT[2]='\0';
-      strcpy(outbuf, "{crypt}");
+      strcpy(outbuf, "{CRYPT}");
       strncpy(outbuf+7, crypt(passwd, SALT), outbuflen-8);
       return 0;
     }
@@ -155,7 +155,7 @@ int hlcrypt_makePwdHash(char *algorithm, char *passwd, char *outbuf, int outbufl
       MD5Init(&md5_ctx);
       MD5Update(&md5_ctx, passwd, strlen(passwd));
       MD5Final(tmpbuf, &md5_ctx);
-      strncpy(outbuf, "{md5}", outbuflen-1);
+      strncpy(outbuf, "{MD5}", outbuflen-1);
       return b64_encode(tmpbuf, MD5_DIGEST_LENGTH, outbuf+5, outbuflen-6)?0:1;
     }
   else if (!strcasecmp(algorithm, "sha"))
@@ -163,7 +163,7 @@ int hlcrypt_makePwdHash(char *algorithm, char *passwd, char *outbuf, int outbufl
       SHA1Reset(&sha_ctx);
       SHA1Input(&sha_ctx, passwd, strlen(passwd));
       SHA1Result(&sha_ctx, tmpbuf);
-      strncpy(outbuf, "{sha}", outbuflen-1);
+      strncpy(outbuf, "{SHA}", outbuflen-1);
       return b64_encode(tmpbuf, SHA_DIGEST_LENGTH, outbuf+5, outbuflen-6)?0:1;
     }
   else if (!strcasecmp(algorithm, "smd5"))
@@ -177,7 +177,7 @@ int hlcrypt_makePwdHash(char *algorithm, char *passwd, char *outbuf, int outbufl
       MD5Update(&md5_ctx, SALT, SALTLEN);
       MD5Final(tmpbuf, &md5_ctx);
       memcpy(tmpbuf+MD5_DIGEST_LENGTH, SALT, SALTLEN);
-      strncpy(outbuf, "{smd5}", outbuflen-1);
+      strncpy(outbuf, "{SMD5}", outbuflen-1);
       return b64_encode(tmpbuf, MD5_DIGEST_LENGTH + SALTLEN, outbuf+6, outbuflen-7)?0:1;
     }
   else if (!strcasecmp(algorithm, "ssha"))
@@ -191,7 +191,7 @@ int hlcrypt_makePwdHash(char *algorithm, char *passwd, char *outbuf, int outbufl
       SHA1Input(&sha_ctx, SALT, SALTLEN);
       SHA1Result(&sha_ctx, tmpbuf);
       memcpy(tmpbuf+SHA_DIGEST_LENGTH, SALT, SALTLEN);
-      strncpy(outbuf, "{ssha}", outbuflen-1);
+      strncpy(outbuf, "{SSHA}", outbuflen-1);
       return b64_encode(tmpbuf, SHA_DIGEST_LENGTH + SALTLEN, outbuf+6, outbuflen-7)?0:1;
     }
   else

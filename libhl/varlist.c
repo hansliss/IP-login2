@@ -52,21 +52,42 @@ void addvar(varlist *vars, char *name, char *value)
 
 void setvar(varlist *vars, char *name, char *value)
 {
+  varlist tmpvar;
   if (!(*vars))
-    addvar(vars, name, value);
+    {
+      if (value)
+	addvar(vars, name, value);
+      return;
+    }
   if (strcasecmp((*vars)->name, name))
     setvar(&((*vars)->next), name, value);
   else
     {
-      if (!strcasecmp((*vars)->value, value))
-	return;
+      if (value)
+	{
+	  if (!strcasecmp((*vars)->value, value))
+	    return;
+	  else
+	    {
+	      if (strlen(value) > strlen((*vars)->value))
+		(*vars)->value=realloc((*vars)->value, strlen(value)+1);
+	      strcpy((*vars)->value, value);
+	    }
+	}
       else
 	{
-	  if (strlen(value) > strlen((*vars)->value))
-	    (*vars)->value=realloc((*vars)->value, strlen(value)+1);
-	  strcpy((*vars)->value, value);
+	  tmpvar=(*vars);
+	  (*vars)=(*vars)->next;
+	  free(tmpvar->name);
+	  free(tmpvar->value);
+	  free(tmpvar);
 	}
     }
+}
+
+void delvar(varlist *vars, char *name)
+{
+  setvar(vars, name, NULL);
 }
 
 char *findvar(varlist vars, char *name)

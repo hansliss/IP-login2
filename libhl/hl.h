@@ -82,6 +82,11 @@ void addvar(varlist *vars, char *name, char *value);
 void setvar(varlist *vars, char *name, char *value);
 
 /*
+  Delete an attribute.
+  */
+void delvar(varlist *vars, char *name);
+
+/*
   Find and return a node in 'vars' (in) with the
   attribute name 'name' (in).
   */
