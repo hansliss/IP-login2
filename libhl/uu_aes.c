@@ -48,6 +48,11 @@ int uu_aes_encrypt(unsigned char *ctext, int ctextsize, unsigned char *key, int 
   if (!ctext || !ctextsize || !outbuf)
     return -2;
 
+#ifdef DEBUG
+  fprintf(stderr, "Encryption key:\n");
+  hexdump(stderr, key, keysize/8);
+#endif
+
   l=ctextsize;
   if (l>BUFSIZE)
     return -2;
@@ -137,6 +142,11 @@ int uu_aes_decrypt(unsigned char *ctext, int ctextsize, unsigned char *key, int 
 
   if (!ctext || !ctextsize || !outbuf)
     return -2;
+
+#ifdef DEBUG
+  fprintf(stderr, "Decryption key:\n");
+  hexdump(stderr, key, keysize/8);
+#endif
 
   /* Verify that the tag is correct */
   if (strncasecmp(ctext, TAG, strlen(TAG)))

@@ -57,6 +57,8 @@ int b64_decode(unsigned char *indata, int indatalen, char *result, int reslen)
   unsigned char A,B,C,D,a,b,c;
   if ((indatalen % 4)!=0)
     return 0;
+  if (reslen < (3 * indatalen / 4))
+    return 0;
   for (i=0, j=0; (i < (indatalen - 3)) && (j < reslen); i+=4, j+=3)
     {
       A=B64_REVERSE(indata[i]);

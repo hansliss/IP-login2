@@ -70,11 +70,16 @@ typedef struct varnode
 } *varlist;
 
 /*
-  Add a attribute/value pair to the list 'vars' (in/out).
+  Add an attribute/value pair to the list 'vars' (in/out).
   'name' and 'value' are in parameters and their contents
   will be copied.
   */
 void addvar(varlist *vars, char *name, char *value);
+
+/*
+  Change or add an attribute value. See addvar().
+  */
+void setvar(varlist *vars, char *name, char *value);
 
 /*
   Find and return a node in 'vars' (in) with the
@@ -228,7 +233,7 @@ char	*genseed(void);
 #define _RSAREF_GLOBAL_H
 
 #ifndef PROTOTYPES
-#define PROTOTYPES 0
+#define PROTOTYPES 1
 #endif
 
 /* POINTER defines a generic pointer type */
@@ -437,13 +442,26 @@ int SHA1Result( SHA1Context *,
 
 #define CHALLENGE_SIZE 64
 
+#define ENCRYPTION_NONE 0
+#define ENCRYPTION_SIMPLE 1
+#define ENCRYPTION_AES 2
+
+#define INITIAL_VERSION 1
+#define INITIAL_ENCRYPTION ENCRYPTION_SIMPLE
+
+#define MAX_VERSION 2
+#define MAX_ENCRYPTION ENCRYPTION_AES
+
 typedef struct hlcrypt_handle_s
 {
+  int version;
+  int encryption;
   /* Authentication and encryption data */
   unsigned char local_challenge[CHALLENGE_SIZE];
   unsigned char remote_challenge[CHALLENGE_SIZE];
   unsigned char local_streamkey[KEYSIZE];
   unsigned char remote_streamkey[KEYSIZE];
+  unsigned char aes_key[32];
 } *HLCRYPT_HANDLE;
 
 /*

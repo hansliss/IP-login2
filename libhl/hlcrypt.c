@@ -205,10 +205,10 @@ void makekey(unsigned char *buf, int bufsize,
 int hlcrypt_Send(SOCKET s, unsigned char *string, HLCRYPT_HANDLE h)
 {
   int i, j, n, m;
-  unsigned char tmpbuf[BUFSIZE];
+  static unsigned char tmpbuf[BUFSIZE];
+  static unsigned char tmpbuf2[BUFSIZE];
   unsigned char packet[PSIZE];
   unsigned char *lc, *lk;
-  n=strlen(string)+1;
 
   if (h)
     {
@@ -220,29 +220,48 @@ int hlcrypt_Send(SOCKET s, unsigned char *string, HLCRYPT_HANDLE h)
       lc=local_challenge;
       lk=local_streamkey;      
     }
+  if (h && (h->encryption==ENCRYPTION_AES))
+    {
+      strncpy(tmpbuf, string, sizeof(tmpbuf));
+      i=uu_aes_encrypt(tmpbuf, strlen(tmpbuf), h->aes_key, 256, tmpbuf2, sizeof(tmpbuf2));
+#ifdef DEBUG
+      if (i)
+	syslog(LOG_DEBUG, "uu_aes_encrypt(): %d", i);
+      else
+	syslog(LOG_DEBUG, "uu_aes_encrypt(): \"%s\"", tmpbuf2);
+#endif
+    }
+  else
+    strncpy(tmpbuf2, string, sizeof(tmpbuf2));
+  n=strlen(tmpbuf2)+1;
   /*  Split the string in packets of size PSIZE */
   for (i=0; i<n; i+=PSIZE)
     {
-      strncpy(packet,&(string[i]),PSIZE);
+      strncpy(packet,&(tmpbuf2[i]),PSIZE);
       m=n-i;
 
       /* Fill the last one with random data */
       while (m<PSIZE)
 	packet[m++]=rand() % 0x100;
 
-      /* Calculate a new stream key before this cleartext is encrypted */
-      makekey(tmpbuf, sizeof(tmpbuf), lc,
-	      CHALLENGE_SIZE, packet, PSIZE);
+      if (h && h->encryption==ENCRYPTION_SIMPLE)
+	{
+	  /* Calculate a new stream key before this cleartext is encrypted */
+	  makekey(tmpbuf, sizeof(tmpbuf), lc,
+		  CHALLENGE_SIZE, packet, PSIZE);
+	  
+	  /* Encrypt this packet */
+	  for (j=0; j<PSIZE; j++)
+	    packet[j]^=lk[j];
 
-      /* Encrypt this packet */
-      for (j=0; j<PSIZE; j++)
-	packet[j]^=lk[j];
+	  /* Save the new key */
+	  memcpy(lk, tmpbuf, KEYSIZE);
+	}
 
       /* ...and write it to the socket */
+      /*      hexdump(stderr, packet, PSIZE);*/
       send(s, packet, PSIZE, 0);
 
-      /* Save the new key */
-      memcpy(lk, tmpbuf, KEYSIZE);
     }
   return 1;
 }
@@ -253,6 +272,7 @@ int hlcrypt_Receive(SOCKET s, unsigned char *string, int maxlen, int timeout, HL
   int ready=0;
   int i,j,n;
   unsigned char packet[PSIZE];
+  static unsigned char tmpbuf[BUFSIZE];
   unsigned char *rc, *rk;
 
   if (h)
@@ -271,15 +291,18 @@ int hlcrypt_Receive(SOCKET s, unsigned char *string, int maxlen, int timeout, HL
     {
       if (readblock(s, timeout, packet, PSIZE) > 0)
 	{
-	  /* Decrypt this packet */
-	  for (j=0;j<PSIZE;j++)
-	    packet[j]^=rk[j];
 
-	  /* Calculate a new stream key */
-	  makekey(rk, KEYSIZE, 
-		  rc, CHALLENGE_SIZE,
-		  packet, PSIZE);
-
+	  if (h && h->encryption==ENCRYPTION_SIMPLE)
+	    {
+	      /* Decrypt this packet */
+	      for (j=0;j<PSIZE;j++)
+		packet[j]^=rk[j];
+	      
+	      /* Calculate a new stream key */
+	      makekey(rk, KEYSIZE, 
+		      rc, CHALLENGE_SIZE,
+		      packet, PSIZE);
+	    }
 	  /* Check if a NUL has been received. */
 	  if (memchr(packet,'\0',PSIZE))
 	    {
@@ -299,7 +322,15 @@ int hlcrypt_Receive(SOCKET s, unsigned char *string, int maxlen, int timeout, HL
       else
 	return -1; /* timeout or connection closed */
     }
-  return i;
+  if (h && (h->encryption==ENCRYPTION_AES))
+    {
+      memcpy(tmpbuf, string, i);
+      i=uu_aes_decrypt(tmpbuf, strlen(tmpbuf), h->aes_key, 256, string, maxlen);
+#ifdef DEBUG
+      syslog(LOG_DEBUG, "uu_aes_decrypt(\"%s\"): %d", tmpbuf, i);
+#endif
+    }
+  return strlen(string);
 }
 
 
@@ -307,10 +338,13 @@ int hlcrypt_AuthClient(SOCKET csocket, unsigned char *local_key,
 		       unsigned char *remote_key, HLCRYPT_HANDLE *h)
 {
   char tmpbuf[BUFSIZE], tmpbuf2[SHA_DIGEST_LENGTH];
-  char *lc, *lk, *rc, *rk;
+  char *lc, *lk, *rc, *rk, *p;
+  int v,e;
   if (h)
     {
       (*h)=(HLCRYPT_HANDLE)malloc(sizeof(struct hlcrypt_handle_s));
+      (*h)->version=INITIAL_VERSION;
+      (*h)->encryption=INITIAL_ENCRYPTION;
       lc=(*h)->local_challenge;
       lk=(*h)->local_streamkey;
       rc=(*h)->remote_challenge;
@@ -326,8 +360,12 @@ int hlcrypt_AuthClient(SOCKET csocket, unsigned char *local_key,
       
   /* Generate a client challenge */
   makerandom(lc, CHALLENGE_SIZE);
+  lc[5]='W';
+  lc[12]='h';
+  lc[21]='i';
+  lc[26]='!';
 
-  /* Write the server challenge to the socket */
+  /* Write the client challenge to the socket */
   send(csocket, lc, CHALLENGE_SIZE, 0);
 
   if (readblock(csocket, READ_TIMEOUT, tmpbuf2, SHA_DIGEST_LENGTH) <= 0)
@@ -368,10 +406,49 @@ int hlcrypt_AuthClient(SOCKET csocket, unsigned char *local_key,
 	  rc, CHALLENGE_SIZE,
 	  remote_key, strlen(remote_key));
 
+  if (h)
+    {
+      memcpy((*h)->aes_key, (*h)->remote_streamkey, 16);
+      memcpy((*h)->aes_key+16, (*h)->local_streamkey, 16);
+    }
+
   if ((hlcrypt_Receive(csocket, tmpbuf, BUFSIZE, READ_TIMEOUT, h?(*h):NULL)>0) &&
       (!strncmp(tmpbuf, "OK", 2)))
     {
-      syslog(LOG_INFO,"Authenticated");
+#ifdef DEBUG
+      syslog(LOG_DEBUG, "Received \"%s\"", tmpbuf);
+#endif
+      tmpbuf[sizeof(tmpbuf)-1]='\0'; /* Guard */
+      if (tmpbuf[2]=='{' && (p=strchr(tmpbuf, '}')))
+	{
+	  if (h)
+	    {
+#ifdef DEBUG
+	      syslog(LOG_DEBUG, "Trying handshake - received \"%s\"", tmpbuf);
+#endif
+	      *(++p)='\0';
+	      if (sscanf(tmpbuf, "OK{%i,%i}", &v, &e)!=2)
+		{
+		  syslog(LOG_WARNING, "Unparseable \"OK\" string - using default version");
+		  v=INITIAL_VERSION;
+		  e=INITIAL_ENCRYPTION;
+		}
+	      if (v > MAX_VERSION)
+		v = MAX_VERSION;
+	      if (e > MAX_ENCRYPTION)
+		e = MAX_ENCRYPTION;
+	      sprintf(tmpbuf, "OK{%d,%d}", v, e);
+	      hlcrypt_Send(csocket, tmpbuf, (*h));
+	      (*h)->version=v;
+	      (*h)->encryption=e;
+	    }
+	  else
+	    {
+	       sprintf(tmpbuf, "OK{%d,%d}", INITIAL_VERSION, INITIAL_ENCRYPTION);
+	       hlcrypt_Send(csocket, tmpbuf, NULL);
+	    }
+	}
+      syslog(LOG_INFO,"Authenticated(%d,%d)",h?(*h)->version:1,h?(*h)->encryption:2);
       return 1;
     }
   else
@@ -383,9 +460,12 @@ int hlcrypt_AuthServer(SOCKET csocket, unsigned char *remote_key,
 {
   char tmpbuf[BUFSIZE], tmpbuf2[SHA_DIGEST_LENGTH];
   char *lc, *lk, *rc, *rk;
+  int handshake=0;
   if (h)
     {
       (*h)=(HLCRYPT_HANDLE)malloc(sizeof(struct hlcrypt_handle_s));
+      (*h)->version=INITIAL_VERSION;
+      (*h)->encryption=INITIAL_ENCRYPTION;
       lc=(*h)->local_challenge;
       lk=(*h)->local_streamkey;
       rc=(*h)->remote_challenge;
@@ -403,6 +483,18 @@ int hlcrypt_AuthServer(SOCKET csocket, unsigned char *remote_key,
     {
       syslog(LOG_ERR,"No challenge received");
       return 0;
+    }
+
+  if (h &&
+      tmpbuf[5]=='W' && 
+      tmpbuf[12]=='h' && 
+      tmpbuf[21]=='i' &&
+      tmpbuf[26]=='!')
+    {
+#ifdef DEBUG
+      syslog(LOG_DEBUG, "Will handshake");
+#endif
+      handshake=1;
     }
 
   /* Generate a server challenge and save the client challenge */
@@ -440,10 +532,36 @@ int hlcrypt_AuthServer(SOCKET csocket, unsigned char *remote_key,
 	  rc, CHALLENGE_SIZE,
 	  remote_key, strlen(remote_key));
 
-  strcpy(tmpbuf,"OK");
-  hlcrypt_MakeToken(tmpbuf+2,sizeof(tmpbuf)-2);
+  if (h && handshake)
+    sprintf(tmpbuf, "OK{%d,%d}", MAX_VERSION, MAX_ENCRYPTION);
+  else
+    strcpy(tmpbuf,"OK");
+
+  hlcrypt_MakeToken(tmpbuf+strlen(tmpbuf),sizeof(tmpbuf)-strlen(tmpbuf));
+
+  if (h)
+    {
+      memcpy((*h)->aes_key, (*h)->local_streamkey, 16);
+      memcpy((*h)->aes_key+16, (*h)->remote_streamkey, 16);
+    }
+
+#ifdef DEBUG
+  syslog(LOG_DEBUG, "Sending \"%s\"", tmpbuf);
+#endif
   
   hlcrypt_Send(csocket,tmpbuf, h?(*h):NULL);
+
+  if (h && handshake)
+    {
+      if (!hlcrypt_Receive(csocket, tmpbuf, sizeof(tmpbuf), READ_TIMEOUT, (*h)) ||
+	  sscanf(tmpbuf, "OK{%i,%i}", &((*h)->version), &((*h)->encryption))!=2 ||
+	  (*h)->version > MAX_VERSION || (*h)->encryption>MAX_ENCRYPTION)
+	{
+	  syslog(LOG_ERR, "Handshake failed");
+	  return 0;
+	}
+    }
+  syslog(LOG_INFO,"Authenticated(%d,%d)",h?(*h)->version:1,h?(*h)->encryption:1);
 
   return 1;
 }

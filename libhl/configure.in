@@ -1,6 +1,6 @@
 AC_INIT(hlcrypt.c)
 PRODUCT=libhl.a
-VERSION=1.3
+VERSION=1.5
 AC_CONFIG_HEADER(config.h)
 
 AC_PROG_CC

@@ -50,6 +50,25 @@ void addvar(varlist *vars, char *name, char *value)
     }
 }
 
+void setvar(varlist *vars, char *name, char *value)
+{
+  if (!(*vars))
+    addvar(vars, name, value);
+  if (strcasecmp((*vars)->name, name))
+    setvar(&((*vars)->next), name, value);
+  else
+    {
+      if (!strcasecmp((*vars)->value, value))
+	return;
+      else
+	{
+	  if (strlen(value) > strlen((*vars)->value))
+	    (*vars)->value=realloc((*vars)->value, strlen(value)+1);
+	  strcpy((*vars)->value, value);
+	}
+    }
+}
+
 char *findvar(varlist vars, char *name)
 {
   varlist tmplist=vars;

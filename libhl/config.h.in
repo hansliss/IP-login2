@@ -53,6 +53,7 @@
 #define HAVE_SYS_FS_TYPES_H 0 /* <sys/fs_types.h> */
 #define HAVE_USTAT_H 0 /* <ustat.h> */
 #define HAVE_SYS_STATVFS_H 0 /* <sys/statvfs.h> */
+#define HAVE_CRYPT_H 0 /* <crypt.h> */
 
 /* If major and minor are not defined in <sys/types.h>, but are in
    <sys/mkdev.h>, set MAJOR_IN_MKDEV to 1.  If they are in
@@ -460,6 +461,8 @@
    SV_INTERRUPT is defined in <signal.h>.  In both of these cases
    system calls can be prevented from restarting.  */
 #define HAVE_RESTARTABLE_SYSCALLS 0
+
+#undef int_least16_t
 
 /* Some systems supposedly need the following macros to be defined.
    These are handled by the configure script.  If you are configuring
