@@ -1,0 +1,568 @@
+#include <tcpd.h>
+#include <sys/time.h>
+#include <sys/timeb.h>
+#include <string.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <syslog.h>
+#include <errno.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/ioctl.h>
+
+#include <hlcrypt.h>
+#include <varlist.h>
+#include <conffile.h>
+#include <divlib.h>
+#include "socketnode.h"
+#include "commands.h"
+#include "filterchains.h"
+#include "arpping.h"
+#include "icmpping.h"
+#include "mymalloc.h"
+#include "accounting.h"
+#include "misc.h"
+
+#include "engine.h"
+
+#include "trace.h"
+
+#define BUFSIZE 8192
+
+#define GC_PERIOD 2
+#define LOOP_SLEEP 200
+#define MISSSTATPERIOD 1
+
+void *accounting_handle=NULL;
+
+/*
+  Check and authenticate a new incoming command server connection
+  before handing it over to docommand().
+
+  Parameters:
+  'conffile' (in): Configuration file for this server
+  'progname' (in): Program name, used as id in /etc/hosts.allow
+  'csocket' (in): The accept():ed connection socket
+  'servername' (in): Our server name for finding the server key
+  'users' (in/out): The list of active users
+  */
+
+void handle_connection(char *conffile, char *progname, int csocket,
+		       char *servername, usernode *users, struct sockaddr_in *ping_source,
+		       void *accounting_handle)
+{
+  struct sockaddr_in client_sa;
+  char client_ip[16], clientname[1024];
+  char local_key[128], remote_key[128];
+  int namelen;
+  namelist possible_clients=NULL;
+  struct request_info req;
+
+  /* Check client with libwrap */
+  request_init(&req, RQ_DAEMON, progname, RQ_FILE, csocket, NULL);
+  fromhost(&req);
+  if (!hosts_access(&req))
+    syslog(deny_severity, "connection from %s refused", eval_client(&req));
+  else
+    {
+      syslog(allow_severity, "connect from %s", eval_client(&req));
+      /* Get peer IP address */
+      namelen=sizeof(client_sa);
+      if (getpeername(csocket,(struct sockaddr *)&client_sa,&namelen)!=0)
+	syslog(LOG_ERR,"getpeername(): %m");
+      else
+	{
+	  /* Print the IP address to a string for searching in the conffile */
+	  strncpy(client_ip,(char *)inet_ntoa(client_sa.sin_addr),
+		  sizeof(client_ip));
+	  client_ip[sizeof(client_ip)-1]='\0';
+
+	  /* Find out who this client is */
+	  if (!conf_matchlist(conffile,"client", "ip", client_ip,
+			      &possible_clients))
+	    syslog(LOG_ERR,
+		   "%s: no matching client defined in configuration file",
+		   client_ip);
+	  else /* conf_matchlist */
+	    {
+	      /* Select only the FIRST matching client even if there
+		 are more!! There shouldn't be more than one, anyway. */
+	      strncpy(clientname, possible_clients->name, sizeof(clientname));
+	      clientname[sizeof(clientname)-1]='\0';
+		    
+	      /* Get the server key from the conffile */
+	      if (!conf_getvar(conffile,"server",servername,"key",
+			       local_key,sizeof(local_key)))
+		syslog(LOG_ERR,
+		       "No server key is defined for %s",
+		       servername);
+	      else /* server key */
+		{
+		  if (!conf_getvar(conffile,"client",clientname,"key",
+				   remote_key,sizeof(remote_key)))
+		    syslog(LOG_ERR,
+			   "No client key is defined for %s",clientname);
+		  else /* client key */
+		    {
+		      /* Try to authenticate the client or fail silently */
+		      if (hlcrypt_AuthServer(csocket, remote_key, local_key, NULL))
+			{
+			  /* Receive and handle a command now, the client
+			     is OK */
+			  docommand(csocket, clientname, conffile, users, ping_source, accounting_handle);
+			}
+		    }
+		}
+	      freenamelist(&possible_clients);
+	    }
+	}
+    }
+  /*  shutdown(csocket, 2);*/
+  close(csocket);
+}
+
+/*
+  Traverse the list of users and send ping packets of appropriate types
+  to them all.
+
+  Parameters:
+  'rawsockets' (in/out): A list of currently open sockets, one for each
+  ethernet interface and each user type.
+  'user' (in): All the users
+  'ident' (in): An identity for ICMP echo request
+  */
+void send_pings(socketnode *rawsockets, usernode users, int ident)
+{
+  static char tmpbuf[BUFSIZE];
+  usernode tmpuser=users;
+  while (tmpuser)
+    {
+      switch (tmpuser->user_type)
+	{
+	case USER_TYPE_ARPPING:
+	  sprintf(tmpbuf,"ARP request to %s",inet_ntoa(tmpuser->address));
+	  trace_msg(tmpbuf);
+	  mymalloc_pushcontext("send_arpping()");
+	  send_arpping(rawsockets, tmpuser);
+	  mymalloc_popcontext();
+	  tmpuser->last_sent=time(NULL);
+	  break;
+	case USER_TYPE_PING:
+	  sprintf(tmpbuf,"ICMP echo request to %s",inet_ntoa(tmpuser->address));
+	  trace_msg(tmpbuf);
+	  mymalloc_pushcontext("send_icmpping()");
+	  send_icmpping(rawsockets, tmpuser, ident);
+	  mymalloc_popcontext();
+	  tmpuser->last_sent=time(NULL);
+	  break;
+	case USER_TYPE_NONE:
+	  break;
+	default:
+	  syslog(LOG_ERR,"User %s has illegal type %d",
+		 inet_ntoa(tmpuser->address),
+		 tmpuser->user_type);
+	  tmpuser->user_type=USER_TYPE_NONE;
+	  break;
+	}
+      tmpuser=tmpuser->next;
+    }
+}
+
+/*
+  Receive and handle all pending replies on all the open
+  sockets.
+
+  Parameters:
+  'allsockets' (in): A list of currently open sockets
+  'users' (in): All the users
+  'ident' (in): An identity for ICMP echo reply
+  */
+void receive_replies(socketnode allsockets, usernode users, int ident, int timeout)
+{
+  fd_set myfdset;
+  int maxsock=-1, i;
+  socketnode tmpsock;
+  struct timeval select_timeout={0, 200000};
+  static unsigned char packet[4096];
+  unsigned char from[16384];
+  int alen;
+
+#if 0
+  static char tmpbuf[BUFSIZE];
+  long nbytes;
+  tmpsock=allsockets;
+  while (tmpsock)
+    {
+      ioctl(tmpsock->socket, FIONREAD, &nbytes);
+      if (nbytes>0)
+	{
+	  sprintf(tmpbuf, "%ld bytes waiting on fd %d",nbytes, tmpsock->socket);
+	  trace_msg(tmpbuf);
+	}
+      tmpsock=tmpsock->next;
+    }
+#endif
+
+  /* Loop until select() says 'no' */
+  while (1)
+    {
+      select_timeout.tv_sec=timeout/1000;
+      select_timeout.tv_usec=1000*(timeout%1000);
+      /* Initialize an fd_set with all the fd:s we are interested in */
+      FD_ZERO(&myfdset);
+      tmpsock=allsockets;
+      while (tmpsock)
+	{
+	  FD_SET(tmpsock->socket, &myfdset);
+	  if (tmpsock->socket > maxsock)
+	    maxsock=tmpsock->socket;
+	  tmpsock=tmpsock->next;
+	}
+
+      /* Check if there is anything to receive */
+      if (select(maxsock+1, &myfdset, NULL, NULL, &select_timeout))
+	{
+	  for (i=0; i<(maxsock+1); i++)
+	    if (FD_ISSET(i, &myfdset))
+	      {
+		/* fprintf(stderr,"Packet received on fd %d\n", i);*/
+
+		/* Receive a packet */
+		alen=sizeof(from);
+		if (recvfrom(i, packet, sizeof(packet), 0,
+			     (struct sockaddr *)&from, &alen)<0)
+		  syslog(LOG_ERR, "recvfrom(): %m");
+		else /* recvfrom */
+		  {
+		    /* Hand this packet over to recv_arpreply */
+		    if (!recv_arpreply(packet, sizeof(packet),
+				       (struct sockaddr_ll *)from, users))
+		      {
+			/* ..or to recv_icmpreply if that fails */
+			recv_icmpreply(packet, sizeof(packet), 
+				       (struct sockaddr_in *)from, users,
+				       ident);
+		      }
+		  }
+	      }
+	}
+      else /* select */
+	break;
+    } /* while */
+  return;
+}
+
+/* Ugly: If parameters are non-NULL, just save them to our local vars,
+   otherwise save the state to the file, if a filename is available */
+void savestate_helper(int do_quit, char *n, usernode *s, socketnode *a)
+{
+  static usernode *users=NULL;
+  static char *filename=NULL;
+  static socketnode *allsockets=NULL;
+  socketnode tmpsock;
+  if (n && s && a)
+    {
+      users=s;
+      filename=n;
+      allsockets=a;
+    }
+  else
+    {
+      if (filename)
+	do_save_state(-1, filename, *users);
+      if (do_quit)
+	{
+	  do_reset(users);
+	  while (*allsockets)
+	    {
+	      tmpsock=*allsockets;
+	      (*allsockets)=(*allsockets)->next;
+	      close(tmpsock->socket);
+	      free(tmpsock);
+	    }
+	  syslog(LOG_NOTICE,"Exiting");
+	  if (accounting_handle)
+	    acct_cleanup(accounting_handle);
+	  closelog();
+	  exit(0);
+	}
+    }
+}
+  
+void savestate(int s)
+{
+  int do_quit=0;
+  if ((s==SIGUSR2) || (s==SIGTERM))
+    do_quit=1;
+
+  savestate_helper(do_quit, NULL, NULL, NULL);
+  signal(SIGUSR1, savestate);
+}
+
+/* See the header file */
+int mainloop(struct config *conf, int command_server_socket)
+{
+  int addr_len;
+  int ready=0;
+  int scount, lastcount=0;
+  unsigned int number_to_ping;
+
+  struct sockaddr_in remote_addr;
+  int csocket;
+  struct timeval select_timeout;
+  fd_set myfdset;
+  int ident;
+  usernode users=NULL;
+  time_t missstat_last=0;
+  int missstat_count=0;
+
+  time_t stat_gc_last=0;
+
+  time_t now=0, lastgc=0, elapsed;
+  struct timeb last_accept={0,0}, lastcycle, thiscycle;
+
+  socketnode allsockets=NULL, tmpsock;
+
+  static char tmpbuf[BUFSIZE], tmpbuf2[BUFSIZE];
+  namelist tmplist, tmplist2;
+  usernode tmpuser, tmpuser2;
+
+#ifdef STATS
+  FILE *statfile=fopen("iplogin.statistics","w");
+#endif
+
+  /* Save accounting handle for signal handlers */
+  accounting_handle=conf->accounting_handle;
+
+  mymalloc_pushcontext("mainloop()");
+  tmplist=NULL;
+  if (conf_getvar(conf->conffile,"server",conf->servername,"flush_on_start",tmpbuf,sizeof(tmpbuf)) &&
+      splitstring(tmpbuf,',',&tmplist)>0)
+    {
+      tmplist2=tmplist;
+      while (tmplist2)
+	{
+	  fchain_flush(tmplist2->name);
+	  tmplist2=tmplist2->next;
+	}
+      freenamelist(&tmplist);
+    }
+
+  ident=getpid()&0xFFFF;
+  fchain_init();
+
+  /* Don't stop on SIGPIPE */
+  signal(SIGPIPE, SIG_IGN);
+
+  /* If 'loadfile' is non-empty, load state from the file */
+  if (strlen(conf->loadfile)>0)
+    do_load_state(-1, conf->loadfile, &users, &(conf->ping_source), conf->accounting_handle);
+
+  /* Prepare for saving functionality */
+  savestate_helper(0, conf->loadfile, &users, &allsockets);
+  signal(SIGUSR1, savestate);
+  signal(SIGUSR2, savestate);
+  signal(SIGTERM, savestate);
+  ftime(&lastcycle);
+  
+  while (!ready)
+    {
+      ftime(&thiscycle);
+      if (((unsigned long)(1000*(thiscycle.time-last_accept.time) + 
+			   thiscycle.millitm - last_accept.millitm)) > 
+	  conf->accept_interval)
+	{
+#ifdef BIGTRACE
+	  trace_msg("Checking for control connections");
+#endif
+	  /********* Check for an incoming command server connection ********/
+	  FD_ZERO(&myfdset);
+	  FD_SET(command_server_socket, &myfdset);
+	  select_timeout.tv_sec=conf->accept_timeout/1000;
+	  select_timeout.tv_usec=1000*(conf->accept_timeout%1000);
+	  if (select(command_server_socket+1, &myfdset, NULL, NULL,
+		     &select_timeout)!=-1)
+	    {
+	      if (FD_ISSET(command_server_socket, &myfdset))
+		{
+		  addr_len=sizeof(remote_addr);
+		  if ((csocket=accept(command_server_socket,
+				      (struct sockaddr *)&remote_addr,
+				      &addr_len))!=-1)
+		    handle_connection(conf->conffile, conf->progname, csocket,
+				      conf->servername, &users, &(conf->ping_source), conf->accounting_handle);
+		  else if (errno != EINTR)
+		    syslog(LOG_ERR,"accept(): %m");
+		}
+	    }
+	  else
+	    syslog(LOG_ERR, "select(): %m");
+	  last_accept=thiscycle;
+	}
+
+#ifdef BIGTRACE
+      trace_msg("Checking for replies");
+#endif
+      /********* Receive any pending PING replies *********/
+      receive_replies(allsockets, users, ident, 2);
+
+      scount=0;
+      tmpuser=users;
+
+      time(&now);
+#if 0
+      if (((unsigned long)(now-lastgc)) > GC_PERIOD)
+#else
+      if (1)
+#endif
+	{
+	  while (tmpuser)
+	    {
+	      /* Check first if we consider the last PING missed */
+	      if (tmpuser->last_checked_send != tmpuser->last_sent)
+		{
+		  if (tmpuser->last_received <
+		      (tmpuser->last_sent - conf->missdiff))
+		    {
+		      tmpuser->missed++;
+		      tmpuser->last_checked_send=tmpuser->last_sent;
+		      missstat_count++;
+		    }
+		  else
+		    {
+		      if (tmpuser->last_received!=0)
+			{
+			  tmpuser->missed=0;
+			  tmpuser->hits++;
+			  tmpuser->last_checked_send=tmpuser->last_sent;
+			}
+		    }
+		}
+
+	      /* If missed one too many times.. */
+	      if (tmpuser->missed > conf->maxmissed)
+		{
+		  missstat_count-=tmpuser->missed;
+		  if (missstat_count<0)
+		    missstat_count=0;
+		  /* Remove this user from all filter chains */
+		  tmplist=tmpuser->filter_chains;
+		  while (tmplist)
+		    {
+		      fchain_delrule(tmpuser->address, tmplist->name);
+		      tmplist=tmplist->next;
+		    }
+		  /* Tell the world! */
+		  time(&elapsed);
+		  elapsed-=tmpuser->added;
+	      
+		  strcpy(tmpbuf2, ctime(&(tmpuser->added)));
+		  chop(tmpbuf2);
+	      
+		  syslog(LOG_NOTICE, "Timeout: deleting %s, %s after %02d.%02d.%02d. Logged in %s. %u responses received",
+			 inet_ntoa(tmpuser->address),
+			 tmpuser->account,
+			 (int)(elapsed/3600),
+			 (int)(elapsed%3600)/60,
+			 (int)(elapsed%60),
+			 tmpbuf2,
+			 tmpuser->hits
+			 );
+
+		  if (tmpuser->block_installed)
+		    fchain_delblock(tmpuser->address, STAT_BLOCKCHAIN);
+
+		  /* ..and remove the user from our list */
+		  delUser(&users,&tmpuser->address, conf->accounting_handle);
+		  /* ..then start over instead of trying to continue
+		     in the modified list */
+		  tmpuser=users;
+		  scount=0;
+		}
+	      else /* if (..missed..) */
+		{
+		  if ((tmpuser->block_installed) && ((now - tmpuser->block_installed) > STAT_BLOCKTIME))
+		    {
+		      fchain_delblock(tmpuser->address, STAT_BLOCKCHAIN);
+		      tmpuser->block_installed=0;
+		      tmpuser->statmit_count=0;
+		    }
+		  tmpuser=tmpuser->next;
+		  scount++;
+		}
+	    } /* while (tmpuser) */
+	  if (scount!=lastcount)
+	    {
+	      recalc(conf, scount);
+	      lastcount=scount;
+	    }
+	  
+	  /* ..and remember when we did this */
+	  lastgc=now;
+	} /* while (...GC_PERIOD...) */
+
+      if ((now - stat_gc_last) > STAT_BLOCKGC)
+	{
+	  fchain_flush(STAT_BLOCKCHAIN);
+	  stat_gc_last=now;
+	}
+
+      if ((now - missstat_last) > (MISSSTATPERIOD * 60))
+	{
+	  syslog(LOG_DEBUG, "Missed %d replies in the last %d minute%s", missstat_count, MISSSTATPERIOD, (MISSSTATPERIOD>1)?"s":"");
+	  missstat_count=0;
+	  missstat_last=now;
+	}
+      trace_msg("Sending requests");
+      
+      /* Finally, send out all those ping packets */
+      ftime(&thiscycle);
+      number_to_ping=1000 * (1000 * (thiscycle.time - lastcycle.time) + 
+			     thiscycle.millitm - lastcycle.millitm) /
+	conf->pinginterval;
+      if (number_to_ping>0)
+	{
+	  /* Extract 'number_to_ping' users from the beginning of the list */
+	  tmpuser=users;
+	  tmpuser2=NULL;
+	  while (users && (number_to_ping--))
+	    {
+	      tmpuser2=users;
+	      users=users->next;
+	    }
+	  if (tmpuser2)
+	    tmpuser2->next=NULL;
+
+	  /* Send pings only to those users */
+	  send_pings(&allsockets, tmpuser, ident);
+
+	  /* And then link them onto the end of the list */
+	  if (!users)
+	    users=tmpuser;
+	  else
+	    {
+	      tmpuser2=users;
+	      while (tmpuser2->next)
+		tmpuser2=tmpuser2->next;
+	      tmpuser2->next=tmpuser;
+	    }
+	  lastcycle=thiscycle;
+	}
+      usleep(LOOP_SLEEP);
+    } /* while (!ready) */
+  /* This will not happen in this version */
+  do_reset(&users);
+  while (allsockets)
+    {
+      tmpsock=allsockets;
+      allsockets=allsockets->next;
+      close(tmpsock->socket);
+      free(tmpsock);
+    }
+  mymalloc_popcontext();
+  return 1;
+}
+
+  

@@ -1,0 +1,279 @@
+<html><head><title>IP-login 2</title></head><body>
+<center><h1>IP-login version 2</h1></center>
+<i><center>Hans Liss</center>
+<center>Uppsala Universitet IT-St&ouml;d</center>
+<center>2003-01-22</center></i>
+<br/>
+<h2>Kort beskrivning</h2>
+<p>
+IP-login, det centrala programmet i Bifrost Nomad, &auml;r ett program vars uppgift
+&auml;r att h&aring;lla reda p&aring; ett
+antal arbetsstationer p&aring; ett lokalt n&auml;t och se till att de kan
+f&aring; tillg&aring;ng till externa resurser s&aring; l&auml;nge de &auml;r inloggade i
+systemet, men f&ouml;rlorar den tillg&aring;ngen s&aring; fort de kopplas loss fr&aring;n
+n&auml;tet eller st&auml;ngs av, och d&aring; m&aring;ste logga in igen.
+</p>
+<p>
+I sin enklaste form k&ouml;rs programmet som en daemon p&aring; en
+<a href="http://bifrost.slu.se">Bifrost</a>-router, och servar ett
+CGI-program p&aring; en webserver (normalt p&aring; samma router), som l&aring;ter en
+anv&auml;ndare logga in, varefter daemonen instrueras att &ouml;ppna routerns
+accessfilter f&ouml;r den anv&auml;ndarens IP-adress och sedan bevaka anv&auml;ndarens
+dator tills den inte l&auml;ngre g&aring;r att n&aring;, varefter accessfiltren tas bort.
+</p>
+<p>
+IP-login2, CGI-programmet (och webservern) samt den autentiseringsserver som anv&auml;nds
+kan ocks&aring; spridas ut &ouml;ver flera maskiner, s&aring; l&auml;nge som IP-login2
+g&aring;r p&aring; routern - detta eftersom programmet sk&ouml;ter om filtren i routern.
+</p>
+<p>
+P&aring; grund av det relativt stora antalet
+konfigurationsparametrar lagras dessa i en konfigurationsfil. Formatet beskrivs nedan.
+</p>
+<p>
+Utg&aring;ngspunkter f&ouml;r konstruktionen &auml;r som f&ouml;ljer:
+<ul>
+<li>Ist&auml;llet f&ouml;r att som tidigare starta en separat IP-loginprocess per anv&auml;ndare
+m&aring;ste vi ha <em>en</em> process som kontrollerar samtliga anv&auml;ndare.</li>
+<li>F&ouml;r att l&ouml;sa detta m&aring;ste processen &auml;ven kunna ta emot kommandon
+fr&aring;n andra program som CGI-programmet och nödvändiga administrationsverktyg.</li>
+<li>F&ouml;r att g&ouml;ra systemet hanterligt m&aring;ste &auml;ven en del
+administrationsfunktioner finnas tillg&auml;ngliga. F&ouml;ljande operationer m&aring;ste
+kunna genomf&ouml;ras:
+<ul>
+<li>L&auml;gga till en anv&auml;ndare</li>
+<li>Kolla om en anv&auml;ndare är inloggad</li>
+<li>Kolla status och statistik f&ouml;r en anv&auml;ndare</li>
+<li>Ta bort en anv&auml;ndare (n&auml;r anv&auml;ndaren loggar ut)</li>
+<li>Ladda om alla filter - "refresh"</li>
+<li>Kolla status f&ouml;r alla aktiva anv&auml;ndare</li>
+<li>&Aring;terst&auml;lla till grundtillst&aring;ndet - ladda ur alla filter etc.</li>
+<li>Spara listan p&aring; aktiva anv&auml;ndare i en fil</li>
+<li>Ladda hela listan p&aring; anv&auml;ndare fr&aring;n en fil</li>
+<li>R&auml;kna inloggade anv&auml;ndare</li>
+</ul>
+</li>
+<li>Ytterligare funktioner som &auml;r bra att ha &auml;r f&ouml;ljande:
+<ul>
+<li>Uppt&auml;cka om en anv&auml;ndare sl&ouml;sar resurser genom att via ett
+automatinloggninsprogram g&ouml;ra alltf&ouml;r t&auml;ta inloggningsf&ouml;rs&ouml;k och
+is&aring;fall blockera anv&auml;ndaren</li>
+<li>Automatiskt r&auml;kna ut viktiga tidsparametrar baserat p&aring; antal inloggade
+anv&auml;ndare och andra parametrar, f&ouml;r att balansera l&aring;g responstid mot
+n&auml;tbelastning och kunna skala upp&aring;t till att hantera m&aring;nga inloggade</li>
+<li>Inneh&aring;lla funktioner f&ouml;r att kunna fels&ouml;ka och uppt&auml;cka
+minnesl&aouml;ckor och annat - IP-login2 m&aring;ste vara stabilt</li>
+</ul>
+</li>
+<li>Ett kommandoradsgr&auml;nssnitt beh&ouml;vs f&ouml;r administrationen</li>
+<li>F&ouml;ruts&auml;ttning f&ouml;r ett webgr&auml;nssnitt &auml;r &ouml;nskv&auml;rt.</li>
+<li>Eftersom administrationen sk&ouml;ts via n&aring;gon form av kommunikation mellan
+en klient (CGI-programmet eller administrationsverktyget) och servern, m&aring;ste
+autentisering finnas i protokollet</li>
+<li>F&ouml;r att g&ouml;ra systemet mer flexibelt och anpassa det till n&aring;got
+annorlunda klasser av behov, skall programmet kunna hantera fler &auml;n en
+accessfilterkedja per anv&auml;ndare. D&aring; kan man med hj&auml;lp det h&auml;r
+programmet bygga ett resursorienterat access-system f&ouml;r konferensrum och liknande</li>
+<li>Servern m&aring;ste logga alla sin aktiviteter via <i>syslog()</i></li>
+<li>Servern b&ouml;r kunna samla en hel del statistik om anv&auml;ndarna, och eventuellt
+kunna hantera automatisk utloggning vid inaktivitet och liknande</li>
+<li>Hantering av filterkedjor skall helst sk&ouml;tas direkt av serverprogrammet, inte
+via anrop av externa program. <i>iptables</i> har ett API f&ouml;r detta.</li>D
+<li>Tv&aring; olika varianter av &ouml;vervakning m&aring;ste st&ouml;djas:
+<ol>
+<li>ARP-ping, dvs att regelbundet s&auml;nda ut ARP-f&ouml;rfr&aring;gningar och
+v&auml;nta p&aring; ARP-svar</li>
+<li>PING, dvs ICMP Echo Request/Reply, d&aring; anv&auml;ndarens maskin sitter bakom en router</li>
+</ol>
+</ul>
+</p>
+<h2>Plattformar</h2>
+<p>
+Endast Linux st&ouml;ds f&ouml;r sj&auml;lva serverprogrammet, medan
+administrationsklienten b&ouml;r g&aring; att bygga p&aring; valfri
+Unix-/Linux-plattform eller Windows 2000.
+</p>
+<h2>Konfigurationsfilen</h2>
+<p>
+F&ouml;ljande parametrar kan finnas i konfigurationsfilen:
+<table border>
+<tr><th>Kategori</th><th>Namn</th><th>Beskrivning</th></tr>
+<tr><td>server</td><td><i>syslog_facility</i></td><td>Namn p&aring; den "facility" som
+skall anv&auml;ndas f&ouml;r <i>syslog()</i>-loggning</td></tr>
+<tr><td>server</td><td><i>syslog_name</i></td><td>Det namn som skall anv&auml;ndas som
+programnamn i <i>syslog()</i></td></tr>
+<tr><td>server</td><td><i>pidfile</i></td><td>Namn p&aring; en fil att registrera
+processens PID i</td></tr>
+<tr><td>server</td><td><i>listen_address</i></td><td>IP-adress eller DNS-namn som
+processen skall lyssna p&aring;. Normalt "<i>0.0.0.0</i>", eftersom serverprocessen skall
+n&aring;s fr&aring;n flera h&aring;ll.</td></tr>
+<tr><td>server</td><td><i>listen_port</i></td><td>Portnummer eller <i>service</i>-namn som
+processen skall lyssna p&aring;</td></tr>
+<tr><td>server</td><td><i>accept_interval</i></td><td>Intervall i ms mellan
+<i>select()</i>-anrop f&ouml;r kontrollf&ouml;rbindelser. Tuningparameter.</td></tr>
+<tr><td>server</td><td><i>accept_timeout</i></td><td>Timeout i ms f&ouml;r
+<i>select()</i>-anrop f&ouml;r kontrollf&ouml;rbindelser. Tuningparameter.</td></tr>
+<tr><td>server</td><td><i>logout_timeout</i></td><td>&Ouml;nskad tid i sekunder
+innan en bortkopplad anv&aouml;ndare loggas ut.</td></tr>
+<tr><td>server</td><td><i>min_pinginterval</i></td><td>Minsta antal mikrosekunder mellan
+varje ping-s&auml;ndning (b&aring;de ARP-ping och ICMP-ping).</td></tr>
+<tr><td>server</td><td><i>missdiff</i></td><td>Anger hur m&aring;nga sekunder
+&auml;ldre det senaste svarspaketet f&aring;r vara &auml;n det senaste
+s&auml;nda paketet innan det r&auml;knas som en miss</td></tr>
+<tr><td>server</td><td><i>key</i></td><td>Serverns autentiseringsnyckel</td></tr>
+<tr><td>server</td><td><i>accounting_lib</i></td><td>S&ouml;kv&auml;g till dynamiskt bibliotek f&ouml;r &quot;accounting&quot;.</td></tr>
+<tr><td>server</td><td><i>accounting_id</i></td><td>Programidentifiering vid &quot;accounting&quot;.</td></tr>
+<tr><td>server</td><td><i>tracefile/i></td><td>Filnamn f&ouml;r tracefunktionen. Om denna parameter
+finns aktiveras tracefunktionen.</td></tr>
+<tr><td>server</td><td><i>flush_on_start</i></td><td>En lista p&aring; iptables-kedjor att t&ouml;mma
+vid start.</td></tr>
+<tr><td>client</td><td><i>ip</i></td><td>Klientens IP-adress</td></tr>
+<tr><td>client</td><td><i>key</i></td><td>Klientens autentiseringsnyckel</td></tr>
+<tr><td>client</td><td><i>perms</i></td><td>En lista p&aring; kommandon som denna klient
+har r&auml;tt att utf&ouml;ra. Om n&aring;got av listelementen &auml;r &quot;any&quot;
+till&aring;ts alla kommandon.
+</table>
+</p>
+<p>
+Exempel p&aring; konfigurationsfil:
+<pre>
+server nomad
+        syslog_facility=local6
+        syslog_name=iplogin2
+        pidfile=/var/run/iplogin.pid
+        listen_address=0.0.0.0
+        listen_port=iplogin2
+        accept_interval=30
+        accept_timeout=20
+        logout_imeout=25
+        pinginterval=5000
+        min_pinginterval=2000
+        missdiff=2
+        maxmissed=5
+        key=The key to it all is fnurgel
+        accounting_lib=./acclib_test.so
+        accounting_id=iplogin
+	flush_on_start=users,nat:users
+
+client localhost
+        ip=127.0.0.1
+        key=sture
+        perms=any
+</pre>
+</p>
+<h2>Kommentarer</h2>
+<p>
+<ul>
+<li>Tracefunktionen &auml;r fr&auml;mst avsedd f&ouml;r att f&aring; en uppfattning
+om s&auml;ndning och mottagning av prober fungerar som den skall i den aktuella versionen.
+Den genererar ganska mycket text.</li>
+<li>Ett namn p&aring; en iptables-kedja kan &auml;ven specificera vilken tabell som avses,
+genom att skriva tabellnamnet f&ouml;ljt av ett kolon (&quot;:&quot;) f&ouml;re namnet
+p&aring; kedjan. Se exemplet ovan.</li>
+<li>Daemonen kan startas med parametrar som anger att en state-fil skall laddas redan vid
+start (&quot;<i>-l &lt;loadfile&gt;</i>&quot;). Om man sedan skickar signalen <i>USR1</i>
+till processen kommer nuvarande <i>state</i> att sparas till samma fil som angavs vid
+starten. <i>USR2</i> g&ouml;r samma sak men avslutar sedan daemonen, varf&ouml;r denna
+funktion kan anv&auml;ndas vid omstart av systemet utan att listan med &ouml;vervakade
+system f&ouml;rsvinner.</li>
+</ul>
+</p>
+<h2>Diskussion</h2>
+<p>
+Eftersom de r&aring;a ARP-paketen m&aring;ste byggas upp f&ouml;r hand och skickas ut
+p&aring; en r&aring; <i>socket</i>, m&aring;ste vi veta b&aring;de interface-index och
+IP-adress p&aring; det n&auml;tinterface som varje paket skall skickas p&aring;.
+D&auml;rf&ouml;r finns det en del kod som anv&auml;nder <i>netlink</i> f&ouml;r att
+plocka ut route-information ur k&auml;rnan. Dessutom anv&auml;nds n&aring;gra
+<i>ioctl()</i>-funktioner f&ouml;r att f&aring; fram IP-adresserna. Detta tillsammans med den
+n&auml;ra sammankopplingen med <i>iptables</i> g&ouml;r att programmet knappast &auml;r
+enkelt porterbart till n&aring;got annat &auml;n Linux.
+</p>
+<h2>Anropsformat</h2>
+<p>
+Serverprogrammet:
+<i><center>iplogin &lt;konfigurationsfil&gt; &lt;servernamn&gt; [ -l &lt;filnamn&gt; ]
+</center></i> d&auml;r "-l" anv&auml;nds f&ouml;r att f&aring; programmet att ladda en
+anv&auml;ndarlista redan vid uppstart.
+</p>
+<p>
+Administrationsklienten - m&aring;ste kompileras med r&auml;tt s&ouml;kv&auml;g till
+konfigurationsfilen och r&auml;tt klientnamn:
+<i><center>iladmin</center></i>
+</p>
+<p>
+Kommandon som f&ouml;rst&aring;s av servern &auml;r som f&ouml;ljer:
+<table border>
+<tr><th>Operation</th><th>Kommando</th></tr>
+<tr>
+<td>L&auml;gga till en anv&auml;ndare</td>
+<td><i>add &lt;adress&gt; &lt;lista p&aring; filterkedjor&gt;</i></td>
+</tr>
+<tr>
+<td>Visa information om en anv&auml;ndare</td>
+<td><i>stat &lt;adress&gt;</i></td>
+</tr>
+<tr>
+<td>Kontrollera huruvida en anv&auml;ndare &auml;r inloggad</td>
+<td><i>check &lt;adress&gt;</i></td>
+</tr>
+<tr>
+<td>Radera en anv&auml;ndare</td>
+<td><i>del &lt;adress&gt;</i></td>
+</tr>
+<tr>
+<td>Ladda om filterkedjorna</td>
+<td><i>reload</i></td>
+</tr>
+<tr>
+<td>F&aring; hj&auml;lp (kommandolista)</td>
+<td><i>help</i></td>
+</tr>
+<tr>
+<td>Visa info om alla anv&auml;ndare</td>
+<td><i>dump</i></td>
+</tr>
+<tr>
+<td>&Aring;terst&auml;lla allt</td>
+<td><i>reset</i></td>
+</tr>
+<tr>
+<td>Avsluta serverprogrammet</td>
+<td><i>quit</i></td>
+</tr>
+<tr>
+<td>Spara anv&auml;ndarlistan till en fil</td>
+<td><i>savestate &lt;filnamn&gt;</i></td>
+</tr>
+<tr>
+<td>Ladda anv&auml;ndarlistan fr&aring;n en fil</td>
+<td><i>loadstate &lt;filnamn&gt;</i></td>
+</tr>
+<tr>
+<td>R&auml;kna antalet aktiva anv&auml;ndare</td>
+<td><i>count</i></td>
+</tr>
+<tr>
+<td>Ta reda p&aring; iplogin2:s aktuella RSS (Resident Segment Size)</td>
+<td><i>rss</i></td>
+</tr>
+<tr>
+<td>Ta reda p&aring; iplogin2:s aktuella vsize</td>
+<td><i>vsize</i></td>
+</tr>
+<tr>
+<td>Starta minnesallokeringsfels&ouml;kning</td>
+<td><i>memdebug [01]</i></td>
+</tr>
+<tr>
+<td>L&auml;gg upp blockering av en anv&auml;ndare</td>
+<td><i>addblock &lt;adress&gt; &lt;lista p&aring; iptables-kedjor&gt;</i></td>
+</tr>
+<tr>
+<td>Ta bort blockering av en anv&auml;ndare</td>
+<td><i>delblock &lt;adress&gt; &lt;lista p&aring; iptables-kedjor&gt;</i></td>
+</tr>
+</table>
+</p>
+</body>
+</html>

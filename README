@@ -1,0 +1,18 @@
+Targets:
+
+iplogin2	The main server daemon. Handles user login/logout. Statically linked and stripped.
+iladmin		A simple menu-based administration client - see ILADMIN_DEFS in the Makefile
+libilglue.a	Glue for linking your own clients
+acclib_test.so	Accounting library example
+
+ilcmd		A single-command administration client
+iladmin_random	Test client sending random commands from a list
+find_interface	Test program for the route lookup code
+testipt		Bulk tester for the iptables filter code
+
+Prerequisites:
+
+The openssl library libcrypto.a must be installed, along with the accompanying include files.
+The libwrap.a library and tcpd.h from tcp_wrappers must be installed
+A version (1.2.5 works) of the 'iptables' package should be unpacked in this directory, and the symbolic link 'iptables' updated to point to the subdirectory in question.
+

@@ -1,0 +1,14 @@
+To get iplogin2 up and running you need a configuration file. Edit
+a copy of iplogin.conf.sample to suit your needs and save it as
+iplogin.conf.
+You will also need to add a service definition to /etc/services,
+like this:
+	iplogin2	4711/tcp
+
+It is a good idea to start iplogin2 from init (8), and this can
+be accomplished by adding a line to /etc/inittab:
+
+il:5:respawn:/opt/iplogin2/bin/iplogin2 /opt/iplogin2/etc/iplogin2.conf nomad -l /var/spool/iplogin2.users
+
+
+

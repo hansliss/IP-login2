@@ -1,0 +1,9 @@
+EXPORTED {
+	global:
+		accounting_open;
+		accounting_login;
+		accounting_logout;
+		accounting_close;
+	local: *;
+};
+

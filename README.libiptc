@@ -1,0 +1,15 @@
+For iptables prior to 1.2.5:
+
+The following fix must be added to libiptc.c, in order to
+avoid a problem with the iptables subsystem eating up file
+descriptors.
+
+Early in TC_INIT():
+
+Change the following line:
+ 	sockfd = socket(TC_AF, SOCK_RAW, IPPROTO_RAW);
+
+to read
+ 	if (sockfd < 0)
+ 	  sockfd = socket(TC_AF, SOCK_RAW, IPPROTO_RAW);
+
