@@ -16,3 +16,18 @@ The openssl library libcrypto.a must be installed, along with the accompanying i
 The libwrap.a library and tcpd.h from tcp_wrappers must be installed
 A version (1.2.5 works) of the 'iptables' package should be unpacked in this directory, and the symbolic link 'iptables' updated to point to the subdirectory in question.
 
+
+-----------------------------------
+2.2.4
+Changed the handling of filterchain specs, to allow for source, destination
+and bidirectional filters, and added an option for specifying target to the
+filter lines. Syntax: [table]:chain[/[sdb]][>target] where "s", "d" and "b"
+denotes "source", "destination" and "both", respectively. The default value
+for "table" is "filter", for "direction" "s" and for "target" "ACCEPT".
+Added a better kind of command dispatcher, by unifying the command handler
+functions and adding them to the command definition array. This saved on a
+huge switch() statement and enabled me to distribute the server configuration
+struct more freely throughout the program.
+By distributing the config struct, I managed to make the block chain
+parameters dynamic and configurable, thus adding more configuration params
+to the conffile. See config.h for details.
