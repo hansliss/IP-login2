@@ -136,7 +136,12 @@ int initialize(struct config *conf)
   /* Open the syslog */
   initialize_log(conf->progname, syslog_facility);
 
-  if (conf_getvar(conf->conffile,"server",conf->servername,"pidfile",conf->pidfile,CONFBSIZE))
+  if (!strlen(conf->loadfile))
+    conf_getvar(conf->loadfile,"server",conf->servername,"loadfile",conf->loadfile,CONFBSIZE);
+
+  if (!strlen(conf->pidfile))
+    conf_getvar(conf->conffile,"server",conf->servername,"pidfile",conf->pidfile,CONFBSIZE);
+  if (strlen(conf->pidfile))
     {
       if (!(tmpfile=fopen(conf->pidfile,"w")))
 	{
@@ -385,6 +390,12 @@ int initialize(struct config *conf)
   return 1;
 }
 
+void usage(char *progname)
+{
+  fprintf(stderr, "Usage: %s [-c] <conffile> [-s] <servername> [ -l <loadfile> ] [ -p <pidfile> ]\n", progname);
+  fprintf(stderr, "\t %s -V\n", progname);
+}
+
 int main(int argc, char *argv[])
 {
   struct config my_config;
@@ -392,29 +403,78 @@ int main(int argc, char *argv[])
   int sockopt;
   int r;
 
-  if (((argc!=2) && (argc!=3) && (argc!=5)) || ((argc==5) && (strcmp(argv[3],"-l"))) ||
-      ((argc==2) && strcmp(argv[1],"-V")))
+  int o;
+  char *_servername=NULL, *_conffile=NULL, *_pidfile=NULL, *_loadfile=NULL;
+  int _debug=0;
+
+  while ((o=getopt(argc, argv, "c:s:p:l:dV"))!=-1)
+    switch (o)
+      {
+      case 'c':
+	_conffile=optarg;
+	break;
+      case 's':
+	_servername=optarg;
+	break;
+      case 'l':
+	_loadfile=optarg;
+	break;
+      case 'p':
+	_pidfile=optarg;
+	break;
+      case 'd':
+	_debug++;
+	break;
+      case 'V':
+	printf("%s\n", versionstring(NULL,0));
+	return 0;
+	break;
+      default:
+	usage(argv[0]);
+	return RET_INVOKE;
+      }
+
+  if (!_conffile)
     {
-      fprintf(stderr, "Usage: %s <conffile> <servername> [ -l <filename> ]\n", argv[0]);
-      fprintf(stderr, "\t %s -V\n", argv[0]);
+      if (optind < argc)
+	_conffile=argv[optind++];
+      else
+	{
+	  fprintf(stderr, "%s: missing configuration file name.\n", PACKAGE);
+	  usage(argv[0]);
+	  return RET_INVOKE;
+	}
+    }
+  if (!_servername)
+    {
+      if (optind < argc)
+	_servername=argv[optind++];
+      else
+	{
+	  fprintf(stderr, "%s: missing server name.\n", PACKAGE);
+	  usage(argv[0]);
+	  return RET_INVOKE;
+	}
+    }
+  if ((argc-optind) != 2)
+    {
+      usage(argv[0]);
       return RET_INVOKE;
     }
-  if ((argc==2) && !strcmp(argv[1],"-V"))
-    {
-      printf("%s\n", versionstring(NULL,0));
-      return 0;
-    }
-  memset(&my_config,0,sizeof(my_config));
-  strncpy(my_config.servername, argv[2], CONFBSIZE);
-  my_config.servername[CONFBSIZE-1]='\0';
-  strncpy(my_config.conffile, argv[1], CONFBSIZE);
-  my_config.conffile[CONFBSIZE-1]='\0';
-  if (argc==5)
-    strncpy(my_config.loadfile, argv[4], CONFBSIZE);
-  else
-    my_config.loadfile[0]='\0';
 
+  memset(&my_config,0,sizeof(my_config));
+  strncpy(my_config.servername, _servername, CONFBSIZE);
+  my_config.servername[CONFBSIZE-1]='\0';
+  strncpy(my_config.conffile, _conffile, CONFBSIZE);
+  my_config.conffile[CONFBSIZE-1]='\0';
+
+  if (_loadfile)
+    strncpy(my_config.loadfile, _loadfile, CONFBSIZE);
   my_config.loadfile[CONFBSIZE-1]='\0';
+
+  if (_pidfile)
+    strncpy(my_config.pidfile, _pidfile, CONFBSIZE);
+  my_config.pidfile[CONFBSIZE-1]='\0';
 
   if (!initialize(&my_config))
     {
@@ -422,7 +482,7 @@ int main(int argc, char *argv[])
       return RET_INIT;
     }
 
-  fprintf(stderr,"%s: Listening on %s:%d\n", my_config.servername, 
+  fprintf(stderr,"%s %s: Listening on %s:%d\n", PACKAGE, my_config.servername, 
 	  inet_ntoa(my_config.listen_address.sin_addr),
 	  ntohs(my_config.listen_address.sin_port));
   if ((command_server_socket=socket(AF_INET,SOCK_STREAM,0))==-1)

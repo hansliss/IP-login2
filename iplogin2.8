@@ -7,10 +7,17 @@
 .Nd client monitor for network login systems
 .Sh SYNOPSIS
 .Nm iplogin2
+.Fl c Ar conffile
+.Fl s Ar servername
+.Op Fl l Ar statefile
+.Op Fl p Ar pidfile
+.Nm iplogin2
 .Ar conffile
 .Ar servername
 .Op Fl l Ar statefile
-.Op Fl V
+.Op Fl p Ar pidfile
+.Nm iplogin2
+.Fl V
 .Sh DESCRIPTION
 .Nm iplogin2
 is a daemon that monitors network users' access to the Internet in a controlled
@@ -27,12 +34,12 @@ nonresponsive for a specified time, it will be logged out automatically. There i
 however, no inactivity logout functionality.
 .Pp
 .Bl -tag -width flag
-.It Ar conffile
+.It Fl c Ar conffile
 is the configuration file, containing numerous parameters controlling the behaviour
 of
 .Nm iplogin2
 and the access of administrative clients to the daemon.
-.It Ar servername
+.It Fl s Ar servername
 is the name of the server process (defined in 
 .Ar "conffile")
 that the program should run as.
@@ -41,7 +48,15 @@ is a file from which
 .Nm iplogin2
 will load its state, and to which
 .Nm iplogin2
-can also be configured to auto-save its state periodically.
+can also be configured to auto-save its state periodically. This option overrides the
+.Ar loadfile
+attribute in the configuration file.
+.It Fl p Ar pidfile
+specifies a fully qualified path name to a file used for storing the process ID of this 
+.Nm iplogin2
+ process. This option overrides the
+.Ar pidfile
+attribute in the configuration file.
 .It Fl V
 This option will cause
 .Nm iplogin2

@@ -42,7 +42,7 @@ not described in this manual page.
 \fINota bene: most or all of these parameters are optional, but when in doubt,
 use the defaults that are in the sample file provided.\fR
 .Pp
-.Bl -tag -width flabbergasted
+.Bl -tag -width flabber
 .It ip = Ar address
 This is the address that 
 .Ar clients
@@ -64,7 +64,18 @@ process will use when syslogging.
 .It pidfile = Ar filename
 specifies a fully qualified path name to a file used for storing the process ID of this 
 .Nm iplogin2
- process.
+process. This can be overridden by the
+.Fl p Ar pidfile
+command-line parameter.
+.It loadfile = Ar statefile
+is a file from which
+.Nm iplogin2
+will load its state, and to which
+.Nm iplogin2
+can also be configured to auto-save its state periodically. This can be overridden
+by the
+.Fl l Ar statefile
+command-line parameter.
 .It listen_address = Ar address-or-name
 is the IP address on which this 
 .Nm iplogin2
