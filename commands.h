@@ -11,7 +11,7 @@
   * syslog() is used so openlog() before calling this
   */
 void do_load_state(int csocket, char *filename, usernode *users,
-		   struct sockaddr_in *ping_source, void *accounting_handle);
+		   struct sockaddr_in *ping_source, void *accounting_handle, HLCRYPT_HANDLE h);
 
 /*
   Save current state data to the file 'filename' (in), if possible.
@@ -20,7 +20,7 @@ void do_load_state(int csocket, char *filename, usernode *users,
   Prerequisites (apart from the obvious):
   * syslog() is used so openlog() before calling this
   */
-void do_save_state(int csocket, char *filename, usernode users);
+void do_save_state(int csocket, char *filename, usernode users, HLCRYPT_HANDLE h);
 
 /*
   Receive a command on the socket 'csocket' (in) for an (already authenticated)
@@ -30,7 +30,7 @@ void do_save_state(int csocket, char *filename, usernode users);
   Prerequisites (apart from the obvious):
   * syslog() is used so openlog() before calling this
   */
-void docommand(struct config *conf, int csocket, char *clientname, usernode *users);
+void docommand(struct config *conf, int csocket, char *clientname, usernode *users, HLCRYPT_HANDLE h);
 
 /*
   Reset to basic state, removing all filter chain rules and

@@ -158,6 +158,20 @@ void fchain_unloadall()
   freenamelist(&used_chains);
 }
 
+/*
+  Retrieve RX and TX byte counters
+  */
+int fchain_getcounters(char *spec, counternode requested_counters)
+{
+  char *table, *chain, *direction, *target;
+  if (!requested_counters)
+    return 0;
+  parsechainspec(spec, &table, &chain, &direction, &target);
+  if (!table)
+    table="filter"; 
+  return iptables_read_counters(table, chain, requested_counters);
+}
+
 /* Init this system */
 void fchain_init()
 {

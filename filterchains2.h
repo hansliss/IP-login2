@@ -1,3 +1,5 @@
+#include "filterchains.h"
+int iptables_read_counters(char *table, char *chain, counternode counters);
 int iptables_add_line(char *table,
 		      char *chain,
 		      struct in_addr *saddr,
@@ -15,4 +17,3 @@ int iptables_delete_line(char *table,
 int iptables_flush_chain(char *table, char *chain);
 int iptables_create_chain(char *table, char *chain);
 void iptables_init(void);
-

@@ -302,6 +302,11 @@ int initialize(struct config *conf)
   else
     conf->stat_blockgc=3600;
 
+  if (conf_getvar(conf->conffile,"server",conf->servername,"counterchain",tmpbuf2,BUFSIZE))
+    strncpy(conf->counterchain, tmpbuf2, sizeof(conf->counterchain));
+  else
+    conf->counterchain[0]='\0';
+
   return 1;
 }
 

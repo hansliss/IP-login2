@@ -25,43 +25,45 @@
   strings sent, sent as a string.
   */
 
-typedef void (*command_handler)(int csocket, namelist parms, usernode *users, struct config *conf);
+typedef void (*command_handler)(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 /*** Protos ***/
-void add_user(int csocket, namelist parms, usernode *users, struct config *conf);
-void send_stat(int csocket, namelist parms, usernode *users, struct config *conf);
-void do_check(int csocket, namelist parms, usernode *users, struct config *conf);
-void del_user(int csocket, namelist parms, usernode *users, struct config *conf);
-void reload_chains(int csocket, namelist parms, usernode *users, struct config *conf);
-void printhelp(int csocket, namelist parms, usernode *users, struct config *conf);
-void dump_state(int csocket, namelist parms, usernode *users, struct config *conf);
-void reset(int csocket, namelist parms, usernode *users, struct config *conf);
-void quit(int csocket, namelist parms, usernode *users, struct config *conf);
-void save_state(int csocket, namelist parms, usernode *users, struct config *conf);
-void load_state(int csocket, namelist parms, usernode *users, struct config *conf);
-void return_count(int csocket, namelist parms, usernode *users, struct config *conf);
-void return_rss(int csocket, namelist parms, usernode *users, struct config *conf);
-void return_vsize(int csocket, namelist parms, usernode *users, struct config *conf);
-void do_memdebug(int csocket, namelist parms, usernode *users, struct config *conf);
-void do_addblock(int csocket, namelist parms, usernode *users, struct config *conf);
-void do_delblock(int csocket, namelist parms, usernode *users, struct config *conf);
+void add_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void send_stat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void dump_tstat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void do_check(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void del_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void reload_chains(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void printhelp(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void dump_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void reset(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void quit(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void save_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void load_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void return_count(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void return_rss(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void return_vsize(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void do_memdebug(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void do_addblock(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void do_delblock(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 
 #define COMMAND_ADD 1
 #define COMMAND_STAT 2
-#define COMMAND_DEL 3
-#define COMMAND_RELOAD 4
-#define COMMAND_HELP 5
-#define COMMAND_DUMP 6
-#define COMMAND_RESET 7
-#define COMMAND_QUIT 8
-#define COMMAND_SAVESTATE 9
-#define COMMAND_LOADSTATE 10
-#define COMMAND_COUNT 11
-#define COMMAND_RSS 12
-#define COMMAND_VSIZE 13
-#define COMMAND_MEMDEBUG 14
-#define COMMAND_ADDBLOCK 15
-#define COMMAND_DELBLOCK 16
-#define COMMAND_CHECK 17
+#define COMMAND_TSTAT 3
+#define COMMAND_DEL 4
+#define COMMAND_RELOAD 5
+#define COMMAND_HELP 6
+#define COMMAND_DUMP 7
+#define COMMAND_RESET 8
+#define COMMAND_QUIT 9
+#define COMMAND_SAVESTATE 10
+#define COMMAND_LOADSTATE 11
+#define COMMAND_COUNT 12
+#define COMMAND_RSS 13
+#define COMMAND_VSIZE 14
+#define COMMAND_MEMDEBUG 15
+#define COMMAND_ADDBLOCK 16
+#define COMMAND_DELBLOCK 17
+#define COMMAND_CHECK 18
 #define COMMAND_UNKNOWN -1
 #define COMMAND_ARGS -2
 #define COMMAND_PERMS -3
@@ -78,6 +80,8 @@ struct commandtabnode {
      "Add a new address:\tadd <address> <account> <list of chains>"},
     {"stat",	COMMAND_STAT,	1, send_stat,
      "Get stats:\t\tstat <address>"},
+    {"tstat",	COMMAND_TSTAT,	1, dump_tstat,
+     "Dump traffic stats:\ttstat <file name>"},
     {"check",	COMMAND_CHECK,	1, do_check,
      "Check:\t\t\tcheck <address>"},
     {"del",	COMMAND_DEL,	1, del_user,
@@ -158,7 +162,7 @@ int do_reloadchains(usernode users)
    on the other end.
 */
 void do_load_state(int csocket, char *filename, usernode *users,
-		   struct sockaddr_in *ping_source, void *accounting_handle)
+		   struct sockaddr_in *ping_source, void *accounting_handle, HLCRYPT_HANDLE h)
 {
   FILE *dumpfile;
   int ok=1;
@@ -178,8 +182,8 @@ void do_load_state(int csocket, char *filename, usernode *users,
       sprintf(tmpbuf,"loadstate: %s: %s", filename, strerror(errno));
       if (csocket!=-1)
 	{
-	  hlcrypt_Send(csocket, "1", NULL);
-	  hlcrypt_Send(csocket, tmpbuf, NULL);
+	  hlcrypt_Send(csocket, "1", h);
+	  hlcrypt_Send(csocket, tmpbuf, h);
 	}
     }
   else /* fopen() */
@@ -208,8 +212,8 @@ void do_load_state(int csocket, char *filename, usernode *users,
 			      syslog(LOG_ERR,"loadstate: addUser failed");
 			      if (csocket!=-1)
 				{
-				  hlcrypt_Send(csocket, "1", NULL);
-				  hlcrypt_Send(csocket, "addUser failed at find_interface()", NULL);
+				  hlcrypt_Send(csocket, "1", h);
+				  hlcrypt_Send(csocket, "addUser failed at find_interface()", h);
 				}
 			      ok=0;
 			      break;
@@ -229,8 +233,8 @@ void do_load_state(int csocket, char *filename, usernode *users,
 				  syslog(LOG_ERR,"loadstate: addUser failed");
 				  if (csocket!=-1)
 				    {
-				      hlcrypt_Send(csocket, "1", NULL);
-				      hlcrypt_Send(csocket, "addUser failed", NULL);
+				      hlcrypt_Send(csocket, "1", h);
+				      hlcrypt_Send(csocket, "addUser failed", h);
 				    }
 				  ok=0;
 				  break;
@@ -257,8 +261,8 @@ void do_load_state(int csocket, char *filename, usernode *users,
 			  syslog(LOG_ERR,"loadstate: no chains");
 			  if (csocket!=-1)
 			    {
-			      hlcrypt_Send(csocket, "1", NULL);
-			      hlcrypt_Send(csocket, "Syntax error in file", NULL);
+			      hlcrypt_Send(csocket, "1", h);
+			      hlcrypt_Send(csocket, "Syntax error in file", h);
 			    }
 			  ok=0;
 			  break;
@@ -270,8 +274,8 @@ void do_load_state(int csocket, char *filename, usernode *users,
 		  syslog(LOG_ERR,"loadstate: Syntax error in file");
 		  if (csocket!=-1)
 		    {
-		      hlcrypt_Send(csocket, "1", NULL);
-		      hlcrypt_Send(csocket, "Syntax error in file", NULL);
+		      hlcrypt_Send(csocket, "1", h);
+		      hlcrypt_Send(csocket, "Syntax error in file", h);
 		    }
 		  ok=0;
 		  break;
@@ -284,8 +288,8 @@ void do_load_state(int csocket, char *filename, usernode *users,
 	  syslog(LOG_ERR,"Loaded state from %s", filename);
 	  if (csocket!=-1)
 	    {
-	      hlcrypt_Send(csocket, "1", NULL);
-	      hlcrypt_Send(csocket, "OK", NULL);
+	      hlcrypt_Send(csocket, "1", h);
+	      hlcrypt_Send(csocket, "OK", h);
 	    }
 	}
     } /* fopen() */
@@ -295,7 +299,7 @@ void do_load_state(int csocket, char *filename, usernode *users,
 /* Save the current state to a given file, if possible
  */
 
-void do_save_state(int csocket, char *filename, usernode users)
+void do_save_state(int csocket, char *filename, usernode users, HLCRYPT_HANDLE h)
 {
   FILE *dumpfile;
   usernode tmpnode=users;
@@ -309,8 +313,8 @@ void do_save_state(int csocket, char *filename, usernode users)
       sprintf(tmpbuf,"savestat: %s: %s", filename, strerror(errno));
       if (csocket!=-1)
 	{
-	  hlcrypt_Send(csocket, "1", NULL);
-	  hlcrypt_Send(csocket, tmpbuf, NULL);
+	  hlcrypt_Send(csocket, "1", h);
+	  hlcrypt_Send(csocket, tmpbuf, h);
 	}
     }
   else /* fopen */
@@ -358,8 +362,8 @@ void do_save_state(int csocket, char *filename, usernode users)
       fclose(dumpfile);
       if (csocket!=-1)
 	{
-	  hlcrypt_Send(csocket, "1", NULL);
-	  hlcrypt_Send(csocket, "OK", NULL);
+	  hlcrypt_Send(csocket, "1", h);
+	  hlcrypt_Send(csocket, "OK", h);
 	}
       syslog(LOG_NOTICE, "Saved state to %s", filename);
     }
@@ -373,26 +377,26 @@ void do_save_state(int csocket, char *filename, usernode users)
    of blocks sent and send the result before calling this function.
    Check dump_state() for an example.
    */
-#define STAT_LINES 12
+#define STAT_LINES 16
 
-void send_single_stat(int csocket, usernode thisnode)
+void send_single_stat(int csocket, usernode thisnode, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE], tmpbuf2[BUFSIZE];
   namelist tmplist;
   sprintf(tmpbuf,"Address: %.64s", inet_ntoa(thisnode->address));
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
   sprintf(tmpbuf,"Account: %.64s", thisnode->account);
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
   sprintf(tmpbuf,"Session id: %.16s", thisnode->session_id);
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
   sprintf(tmpbuf,"Entry added %.64s", ctime(&(thisnode->added)));
   chop(tmpbuf);
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
   sprintf(tmpbuf,"Source interface index: %d", thisnode->ifindex);
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
   sprintf(tmpbuf,"Source interface address: %.64s",
 	  inet_ntoa(thisnode->source_address));
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
   switch (thisnode->user_type)
     {
     case USER_TYPE_PING:
@@ -419,7 +423,7 @@ void send_single_stat(int csocket, usernode thisnode)
       sprintf(tmpbuf,"Type: %d (unknown type)", thisnode->user_type);
       break;
     }
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
   strcpy(tmpbuf,"Chains: ");
   tmplist=thisnode->filter_chains;
   while (tmplist)
@@ -429,17 +433,25 @@ void send_single_stat(int csocket, usernode thisnode)
 	strcat(tmpbuf,",");
       tmplist=tmplist->next;
     }
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
   sprintf(tmpbuf,"Missed replies: %d", thisnode->missed);
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
   sprintf(tmpbuf,"Received replies (total): %d", thisnode->hits);
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
   sprintf(tmpbuf,"Last received reply: %.64s", ctime(&(thisnode->last_received)));
   chop(tmpbuf);
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
   sprintf(tmpbuf,"Last sent packet: %.64s", ctime(&(thisnode->last_sent)));
   chop(tmpbuf);
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
+  sprintf(tmpbuf,"RX bytes: %lld", thisnode->rxcounter);
+  hlcrypt_Send(csocket, tmpbuf, h);
+  sprintf(tmpbuf,"TX bytes: %lld", thisnode->txcounter);
+  hlcrypt_Send(csocket, tmpbuf, h);
+  sprintf(tmpbuf,"RX kbits/s: %u", thisnode->rxkbps);
+  hlcrypt_Send(csocket, tmpbuf, h);
+  sprintf(tmpbuf,"TX kbits/s: %u", thisnode->txkbps);
+  hlcrypt_Send(csocket, tmpbuf, h);
 }
 
 void check_flood(usernode user, struct config *conf)
@@ -479,16 +491,16 @@ void check_flood(usernode user, struct config *conf)
 
   Print usage text
   */
-void printhelp(int csocket, namelist parms, usernode *users, struct config *conf)
+void printhelp(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   char x[32];
   int i;
   syslog(LOG_NOTICE, "Command: help");
   sprintf(x,"%d",NCOMMANDS+1);
-  hlcrypt_Send(csocket, x, NULL);
-  hlcrypt_Send(csocket, "Usage:", NULL);
+  hlcrypt_Send(csocket, x, h);
+  hlcrypt_Send(csocket, "Usage:", h);
   for (i=0; i<NCOMMANDS; i++)
-    hlcrypt_Send(csocket, commandtab[i].usage, NULL);
+    hlcrypt_Send(csocket, commandtab[i].usage, h);
 }
 
 /*
@@ -498,7 +510,7 @@ void printhelp(int csocket, namelist parms, usernode *users, struct config *conf
   the interface index and 'user' type etc.
   This command accepts hostnames or IP adresses.
  */
-void add_user(int csocket, namelist parms, usernode *users, struct config *conf)
+void add_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE], useraddr[BUFSIZE];
   namelist chains=NULL, tmplist;
@@ -522,8 +534,8 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf)
 	{
 	  syslog(LOG_NOTICE, "Add: user %s already active",useraddr);
 	  check_flood(thisnode, conf);
-	  hlcrypt_Send(csocket,"1", NULL);
-	  hlcrypt_Send(csocket,"Already there", NULL);
+	  hlcrypt_Send(csocket,"1", h);
+	  hlcrypt_Send(csocket,"Already there", h);
 	}
       else /* findUser */
 	{
@@ -558,13 +570,13 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf)
 				      conf->accounting_handle))
 			{
 			  freenamelist(&chains);
-			  hlcrypt_Send(csocket,"1", NULL);
-			  hlcrypt_Send(csocket,"add: failed.", NULL);
+			  hlcrypt_Send(csocket,"1", h);
+			  hlcrypt_Send(csocket,"add: failed.", h);
 			}
 		      else /* addUser */
 			{
-			  hlcrypt_Send(csocket,"1", NULL);
-			  hlcrypt_Send(csocket,"OK", NULL);
+			  hlcrypt_Send(csocket,"1", h);
+			  hlcrypt_Send(csocket,"OK", h);
 			  /* Add the IP adress of this user to each of the
 			     filter chains requested */
 			  tmplist=chains;
@@ -581,8 +593,8 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf)
 			     "Add: determine_type failed for user %s",
 			     useraddr);
 		      freenamelist(&chains);
-		      hlcrypt_Send(csocket,"1", NULL);
-		      hlcrypt_Send(csocket,"add: failed.", NULL);
+		      hlcrypt_Send(csocket,"1", h);
+		      hlcrypt_Send(csocket,"add: failed.", h);
 		    }
 		}
 	      else /* find_interface */
@@ -591,23 +603,23 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf)
 			 "Add: find_interface failed for user %s",
 			 useraddr);
 		  freenamelist(&chains);
-		  hlcrypt_Send(csocket,"1", NULL);
-		  hlcrypt_Send(csocket,"add: failed.", NULL);
+		  hlcrypt_Send(csocket,"1", h);
+		  hlcrypt_Send(csocket,"add: failed.", h);
 		}
 	    }
 	  else /* splitstring */
 	    {
 	      syslog(LOG_NOTICE, "Add: no chains for user %s",useraddr);
-	      hlcrypt_Send(csocket,"1", NULL);
-	      hlcrypt_Send(csocket,"add: failed.", NULL);
+	      hlcrypt_Send(csocket,"1", h);
+	      hlcrypt_Send(csocket,"add: failed.", h);
 	    }
 	} /* findUser */
     }
   else /* makeaddress */
     {
       syslog(LOG_NOTICE, "Add: user %s unparseable",parms->name);
-      hlcrypt_Send(csocket,"1", NULL);
-      hlcrypt_Send(csocket,"add: Unknown address" , NULL);
+      hlcrypt_Send(csocket,"1", h);
+      hlcrypt_Send(csocket,"add: Unknown address" , h);
     }
   mymalloc_popcontext();
 }
@@ -619,7 +631,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf)
   Send info on one specific user.
   This command accepts hostnames or IP adresses.
   */
-void send_stat(int csocket, namelist parms, usernode *users, struct config *conf)
+void send_stat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   struct in_addr user_address;
@@ -635,16 +647,51 @@ void send_stat(int csocket, namelist parms, usernode *users, struct config *conf
       if (strcmp(parms->name,tmpbuf))
 	sprintf(tmpbuf,"%s/%s",parms->name,inet_ntoa(user_address));
       syslog(LOG_NOTICE, "Stat: %s", tmpbuf);
-      check_flood(thisnode, conf);
+      /*      check_flood(thisnode, conf);*/
       sprintf(tmpbuf,"%d",STAT_LINES);
-      hlcrypt_Send(csocket,tmpbuf, NULL);
-      send_single_stat(csocket, thisnode);
+      hlcrypt_Send(csocket,tmpbuf, h);
+      send_single_stat(csocket, thisnode, h);
     }
   else /* makeaddress */
     {
       syslog(LOG_NOTICE, "Stat: %s unparseable or unknown", parms->name); 
-      hlcrypt_Send(csocket,"1", NULL);
-      hlcrypt_Send(csocket,"ERROR: Unknown address", NULL);
+      hlcrypt_Send(csocket,"1", h);
+      hlcrypt_Send(csocket,"ERROR: Unknown address", h);
+    }
+}
+
+/*
+  Command: TSTAT
+
+  Dump traffic statistics for all users to a file.
+  */
+void dump_tstat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+{
+  static char tmpbuf[BUFSIZE];
+  usernode thisnode;
+  FILE *statfile;
+  syslog(LOG_NOTICE, "Command: tstat");
+  if (!(statfile=fopen(parms->name, "w")))
+    {
+      syslog(LOG_ERR, "TSTAT: %s: %m", parms->name);
+      sprintf(tmpbuf, "TSTAT: %s: %s", parms->name, strerror(errno));
+      hlcrypt_Send(csocket,"1", h);
+      hlcrypt_Send(csocket, tmpbuf, h);
+    }
+  else
+    {
+      thisnode=*users;
+      while (thisnode)
+	{
+	  fprintf(statfile, "%s\t%d\t%d\t%lld\t%lld\n",
+		  inet_ntoa(thisnode->address),
+		  thisnode->rxkbps, thisnode->txkbps,
+		  thisnode->rxcounter, thisnode->txcounter);
+	  thisnode=thisnode->next;
+	}
+      fclose(statfile);
+      hlcrypt_Send(csocket,"1", h);
+      hlcrypt_Send(csocket, "OK", h);
     }
 }
 
@@ -654,7 +701,7 @@ void send_stat(int csocket, namelist parms, usernode *users, struct config *conf
   Check if a user is logged in
   This command accepts hostnames or IP adresses.
   */
-void do_check(int csocket, namelist parms, usernode *users, struct config *conf)
+void do_check(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   struct in_addr user_address;
@@ -662,7 +709,7 @@ void do_check(int csocket, namelist parms, usernode *users, struct config *conf)
   /*  syslog(LOG_NOTICE, "Command: check");*/
   /* Convert the given user reference to an IP address and find the
      user in our list */
-  hlcrypt_Send(csocket,"1", NULL);
+  hlcrypt_Send(csocket,"1", h);
   if (makeaddress(parms->name, &user_address) &&
       (thisnode=findUser(*users, &user_address)))
     {
@@ -672,12 +719,12 @@ void do_check(int csocket, namelist parms, usernode *users, struct config *conf)
 	sprintf(tmpbuf,"%s/%s",parms->name,inet_ntoa(user_address));
       syslog(LOG_NOTICE, "Check: %s found", tmpbuf);
       check_flood(thisnode, conf);
-      hlcrypt_Send(csocket,"Yes", NULL);
+      hlcrypt_Send(csocket,"Yes", h);
     }
   else /* makeaddress */
     {
       syslog(LOG_NOTICE, "Check: %s not found", parms->name); 
-      hlcrypt_Send(csocket,"No", NULL);
+      hlcrypt_Send(csocket,"No", h);
     }
 }
 
@@ -687,7 +734,7 @@ void do_check(int csocket, namelist parms, usernode *users, struct config *conf)
   Delete a user from our list and remove it from the filter chains.
   This command accepts hostnames or IP adresses.
   */
-void del_user(int csocket, namelist parms, usernode *users, struct config *conf)
+void del_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   struct in_addr user_address;
   static char tmpbuf[BUFSIZE], tmpbuf2[BUFSIZE];
@@ -709,8 +756,8 @@ void del_user(int csocket, namelist parms, usernode *users, struct config *conf)
       if (!(thisuser=findUser(*users, &user_address)))
 	{
 	  syslog(LOG_NOTICE, "Del: user %s is unknown",tmpbuf);
-	  hlcrypt_Send(csocket,"1", NULL);
-	  hlcrypt_Send(csocket,"Not there", NULL);
+	  hlcrypt_Send(csocket,"1", h);
+	  hlcrypt_Send(csocket,"Not there", h);
 	}
       else /* findUser */
 	{
@@ -741,15 +788,15 @@ void del_user(int csocket, namelist parms, usernode *users, struct config *conf)
 	    fchain_delrule(thisuser->address, conf->stat_blockchain);
 
 	  delUser(users,&user_address, conf->accounting_handle);
-	  hlcrypt_Send(csocket,"1", NULL);
-	  hlcrypt_Send(csocket,"OK", NULL);
+	  hlcrypt_Send(csocket,"1", h);
+	  hlcrypt_Send(csocket,"OK", h);
 	}
     }
   else /* makeadress */
     {
       syslog(LOG_NOTICE, "Del: %s unparseable", parms->name); 
-      hlcrypt_Send(csocket,"1", NULL);
-      hlcrypt_Send(csocket,"del: Unknown address", NULL);
+      hlcrypt_Send(csocket,"1", h);
+      hlcrypt_Send(csocket,"del: Unknown address", h);
     }
   mymalloc_popcontext();
 }
@@ -759,14 +806,14 @@ void del_user(int csocket, namelist parms, usernode *users, struct config *conf)
 
   Reload all filter chains.
   */
-void reload_chains(int csocket, namelist parms, usernode *users, struct config *conf)
+void reload_chains(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   syslog(LOG_NOTICE, "Command: reload");
-  hlcrypt_Send(csocket,"1", NULL);
+  hlcrypt_Send(csocket,"1", h);
   if (do_reloadchains(*users))
-    hlcrypt_Send(csocket,"OK", NULL);
+    hlcrypt_Send(csocket,"OK", h);
   else
-    hlcrypt_Send(csocket,"Failed", NULL);
+    hlcrypt_Send(csocket,"Failed", h);
 }
 
 /*
@@ -774,12 +821,12 @@ void reload_chains(int csocket, namelist parms, usernode *users, struct config *
   
   Remove all filter chain rules and empty our list of users.
  */
-void reset(int csocket, namelist parms, usernode *users, struct config *conf)
+void reset(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   syslog(LOG_NOTICE, "Command: reset");
   do_reset(users, conf->accounting_handle);
-  hlcrypt_Send(csocket,"1", NULL);
-  hlcrypt_Send(csocket,"OK", NULL);
+  hlcrypt_Send(csocket,"1", h);
+  hlcrypt_Send(csocket,"OK", h);
 }
 
 /*
@@ -787,12 +834,12 @@ void reset(int csocket, namelist parms, usernode *users, struct config *conf)
   
   Remove all filter chain rules and quit.
  */
-void quit(int csocket, namelist parms, usernode *users, struct config *conf)
+void quit(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   syslog(LOG_NOTICE, "Command: quit");
   do_reset(users, conf->accounting_handle);
-  hlcrypt_Send(csocket,"1", NULL);
-  hlcrypt_Send(csocket,"OK", NULL);
+  hlcrypt_Send(csocket,"1", h);
+  hlcrypt_Send(csocket,"OK", h);
   if (conf->accounting_handle)
     acct_cleanup(conf->accounting_handle);
   close(csocket);
@@ -804,7 +851,7 @@ void quit(int csocket, namelist parms, usernode *users, struct config *conf)
 
   'dump' all the info on all the nodes to the client.
   */
-void dump_state(int csocket, namelist parms, usernode *users, struct config *conf)
+void dump_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   int i=0;
@@ -819,14 +866,14 @@ void dump_state(int csocket, namelist parms, usernode *users, struct config *con
 
   /* Send the number of strings to the client */
   sprintf(tmpbuf,"%d",(STAT_LINES+1)*i);
-  hlcrypt_Send(csocket, tmpbuf, NULL);
+  hlcrypt_Send(csocket, tmpbuf, h);
 
   /* ...and then send all the data */
   thisnode=*users;
   while (thisnode)
     {
-      hlcrypt_Send(csocket,"----------------------------", NULL);
-      send_single_stat(csocket, thisnode);
+      hlcrypt_Send(csocket,"----------------------------", h);
+      send_single_stat(csocket, thisnode, h);
       thisnode=thisnode->next;
     }
 }
@@ -836,10 +883,10 @@ void dump_state(int csocket, namelist parms, usernode *users, struct config *con
 
   Save all our data to a file that can be loaded later.
   */
-void save_state(int csocket, namelist parms, usernode *users, struct config *conf)
+void save_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   syslog(LOG_NOTICE, "Command: savestate");
-  do_save_state(csocket, parms->name, *users);
+  do_save_state(csocket, parms->name, *users, h);
 }
 
 /*
@@ -847,11 +894,11 @@ void save_state(int csocket, namelist parms, usernode *users, struct config *con
 
   Reset and then load the state from the given file.
   */
-void load_state(int csocket, namelist parms, usernode *users, struct config *conf)
+void load_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   syslog(LOG_NOTICE, "Command: loadstate");
   do_reset(users, conf->accounting_handle);
-  do_load_state(csocket, parms->name, users, &(conf->defaultping.ping_source), conf->accounting_handle);
+  do_load_state(csocket, parms->name, users, &(conf->defaultping.ping_source), conf->accounting_handle, h);
 }
 
 /*
@@ -859,7 +906,7 @@ void load_state(int csocket, namelist parms, usernode *users, struct config *con
   
   Count active users
  */
-void return_count(int csocket, namelist parms, usernode *users, struct config *conf)
+void return_count(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   int count=0;
@@ -870,9 +917,9 @@ void return_count(int csocket, namelist parms, usernode *users, struct config *c
       count++;
       tmpnode=tmpnode->next;
     }
-  hlcrypt_Send(csocket,"1", NULL);
+  hlcrypt_Send(csocket,"1", h);
   sprintf(tmpbuf,"%d",count);
-  hlcrypt_Send(csocket,tmpbuf, NULL);
+  hlcrypt_Send(csocket,tmpbuf, h);
 }
 
 /*
@@ -880,13 +927,13 @@ void return_count(int csocket, namelist parms, usernode *users, struct config *c
   
   return RSS
  */
-void return_rss(int csocket, namelist parms, usernode *users, struct config *conf)
+void return_rss(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   syslog(LOG_NOTICE, "Command: rss");
-  hlcrypt_Send(csocket,"1", NULL);
+  hlcrypt_Send(csocket,"1", h);
   sprintf(tmpbuf,"%d",getRSS());
-  hlcrypt_Send(csocket,tmpbuf, NULL);
+  hlcrypt_Send(csocket,tmpbuf, h);
 }
 
 /*
@@ -894,13 +941,13 @@ void return_rss(int csocket, namelist parms, usernode *users, struct config *con
   
   return VSIZE
  */
-void return_vsize(int csocket, namelist parms, usernode *users, struct config *conf)
+void return_vsize(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   syslog(LOG_NOTICE, "Command: vsize");
-  hlcrypt_Send(csocket,"1", NULL);
+  hlcrypt_Send(csocket,"1", h);
   sprintf(tmpbuf,"%lu",getvsize());
-  hlcrypt_Send(csocket,tmpbuf, NULL);
+  hlcrypt_Send(csocket,tmpbuf, h);
 }
 
 /*
@@ -908,15 +955,15 @@ void return_vsize(int csocket, namelist parms, usernode *users, struct config *c
 
   set/unset malloc() debug flag
   */
-void do_memdebug(int csocket, namelist parms, usernode *users, struct config *conf)
+void do_memdebug(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   int v;
   static char tmpbuf[BUFSIZE];
   sscanf(parms->name,"%i",&v);
   mymalloc_setdebug(v);
-  hlcrypt_Send(csocket,"1", NULL);
+  hlcrypt_Send(csocket,"1", h);
   sprintf(tmpbuf,"Memory debugging is %s",v?"enabled":"disabled");
-  hlcrypt_Send(csocket,tmpbuf, NULL);
+  hlcrypt_Send(csocket,tmpbuf, h);
 }
 
 /*
@@ -925,7 +972,7 @@ void do_memdebug(int csocket, namelist parms, usernode *users, struct config *co
   Add a tcp block filter line.
   This command accepts hostnames or IP adresses.
  */
-void do_addblock(int csocket, namelist parms, usernode *users, struct config *conf)
+void do_addblock(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   namelist chains=NULL, tmplist;
@@ -952,21 +999,21 @@ void do_addblock(int csocket, namelist parms, usernode *users, struct config *co
 		  fchain_addrule(user_address,tmplist->name);
 		  tmplist=tmplist->next;
 		}
-	      hlcrypt_Send(csocket,"1", NULL);
-	      hlcrypt_Send(csocket,"OK", NULL);
+	      hlcrypt_Send(csocket,"1", h);
+	      hlcrypt_Send(csocket,"OK", h);
 	    }
 	  else /* splitstring */
 	    {
 	      syslog(LOG_NOTICE, "Addblock: no chains specified for user %s",tmpbuf);
-	      hlcrypt_Send(csocket,"1", NULL);
-	      hlcrypt_Send(csocket,"addblock: failed.", NULL);
+	      hlcrypt_Send(csocket,"1", h);
+	      hlcrypt_Send(csocket,"addblock: failed.", h);
 	    }
     }
   else /* makeaddress */
     {
       syslog(LOG_NOTICE, "Addblock: user %s unparseable",parms->name);
-      hlcrypt_Send(csocket,"1", NULL);
-      hlcrypt_Send(csocket,"addblock: Unknown address", NULL);
+      hlcrypt_Send(csocket,"1", h);
+      hlcrypt_Send(csocket,"addblock: Unknown address", h);
     }
   mymalloc_popcontext();
 }
@@ -977,7 +1024,7 @@ void do_addblock(int csocket, namelist parms, usernode *users, struct config *co
   Remove a tcp block filter line.
   This command accepts hostnames or IP adresses.
  */
-void do_delblock(int csocket, namelist parms, usernode *users, struct config *conf)
+void do_delblock(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE];
   namelist chains=NULL, tmplist;
@@ -1004,21 +1051,21 @@ void do_delblock(int csocket, namelist parms, usernode *users, struct config *co
 		  fchain_delrule(user_address,tmplist->name);
 		  tmplist=tmplist->next;
 		}
-	      hlcrypt_Send(csocket,"1", NULL);
-	      hlcrypt_Send(csocket,"OK", NULL);
+	      hlcrypt_Send(csocket,"1", h);
+	      hlcrypt_Send(csocket,"OK", h);
 	    }
 	  else /* splitstring */
 	    {
 	      syslog(LOG_NOTICE, "Delblock: no chains specified for user %s",tmpbuf);
-	      hlcrypt_Send(csocket,"1", NULL);
-	      hlcrypt_Send(csocket,"delblock: failed.", NULL);
+	      hlcrypt_Send(csocket,"1", h);
+	      hlcrypt_Send(csocket,"delblock: failed.", h);
 	    }
     }
   else /* makeaddress */
     {
       syslog(LOG_NOTICE, "Delblock: user %s unparseable",parms->name);
-      hlcrypt_Send(csocket,"1", NULL);
-      hlcrypt_Send(csocket,"delblock: Unknown address", NULL);
+      hlcrypt_Send(csocket,"1", h);
+      hlcrypt_Send(csocket,"delblock: Unknown address", h);
     }
   mymalloc_popcontext();
 }
@@ -1101,22 +1148,22 @@ int check_command(char *cmd, char *clientname, char *conffile,
 void docommand(struct config *conf,
 	       int csocket,
 	       char *clientname,
-	       usernode *users)
+	       usernode *users, HLCRYPT_HANDLE h)
 {
   static char tmpbuf[BUFSIZE], command[BUFSIZE];
   static unsigned long oldvsize=0, newvsize;
   namelist parms=NULL;
   char *response=NULL;
   command_handler fcall;
-  if (hlcrypt_Receive(csocket, tmpbuf, BUFSIZE, READ_TIMEOUT, NULL)>0)
+  if (hlcrypt_Receive(csocket, tmpbuf, BUFSIZE, READ_TIMEOUT, h)>0)
     {
       switch (check_command(tmpbuf, clientname, conf->conffile, &parms, command, sizeof(command), &response, &fcall))
 	{
 	case COMMAND_ARGS:
 	  if (!response)
 	    response="Failed";
-	  hlcrypt_Send(csocket,"1", NULL);
-	  hlcrypt_Send(csocket,response, NULL);
+	  hlcrypt_Send(csocket,"1", h);
+	  hlcrypt_Send(csocket,response, h);
 	  dejunkifyforlog(tmpbuf);
 	  syslog(LOG_ERR,
 		 "Parameter error in command \"%s\" from %s",
@@ -1124,8 +1171,8 @@ void docommand(struct config *conf,
 	  break;
 
 	case COMMAND_PERMS:
-	  hlcrypt_Send(csocket,"1", NULL);
-	  hlcrypt_Send(csocket,"Permission denied", NULL);
+	  hlcrypt_Send(csocket,"1", h);
+	  hlcrypt_Send(csocket,"Permission denied", h);
 	  dejunkifyforlog(tmpbuf);
 	  syslog(LOG_ERR,
 		 "Permission denied for \"%s\" from %s",tmpbuf,clientname);
@@ -1135,10 +1182,10 @@ void docommand(struct config *conf,
 	  dejunkifyforlog(tmpbuf);
 	  syslog(LOG_ERR, "Unrecognized command \"%s\" from %s",
 		 tmpbuf,clientname);
-	  hlcrypt_Send(csocket, "0", NULL);
+	  hlcrypt_Send(csocket, "0", h);
 	  break;
 	default:
-	  fcall(csocket, parms, users, conf);
+	  fcall(csocket, parms, users, conf, h);
 	  break;
 	}
       if ((newvsize=getvsize())!=oldvsize)

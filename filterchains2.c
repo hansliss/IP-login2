@@ -15,6 +15,8 @@
 #include <netdb.h>
 #include <syslog.h>
 
+#include "filterchains.h"
+
 #ifndef IPT_LIB_DIR
 #define IPT_LIB_DIR "/usr/lib/iptables"
 #endif
@@ -258,6 +260,55 @@ static unsigned char *make_delete_mask(struct ipt_entry *fw)
 	 + iptables_targets->userspacesize);
 
   return mask;
+}
+
+int iptables_read_counters(char *table, char *chain, counternode counters)
+{
+  iptc_handle_t handle=NULL;
+  const struct ipt_entry *this;
+  counternode tmpcnt;
+  handle = iptc_init(table);
+  if (!handle)
+    {
+      syslog(LOG_ERR,"iptc_init() failed\n");
+      return 0;
+    }
+
+  this = iptc_first_rule(chain, &handle);
+  while (this)
+    {
+      if ((this->ip.src.s_addr == 0) &&
+	  (this->ip.smsk.s_addr == 0) &&
+	  (this->ip.dmsk.s_addr == 0xFFFFFFFFL) &&
+	  !(this->ip.invflags & IPT_INV_DSTIP))   /* RX counter */
+	{
+	  tmpcnt=counters;
+	  while (tmpcnt)
+	    {
+	      if (!memcmp(&(this->ip.dst.s_addr), &(tmpcnt->address), sizeof(tmpcnt->address)) &&
+		  tmpcnt->rxcounter == 0)
+		tmpcnt->rxcounter=this->counters.bcnt;
+	      tmpcnt=tmpcnt->next;
+	    }
+	}
+      else if ((this->ip.dst.s_addr == 0) &&
+	       (this->ip.dmsk.s_addr == 0) &&
+	       (this->ip.smsk.s_addr == 0xFFFFFFFFL) &&
+	       !(this->ip.invflags & IPT_INV_SRCIP))   /* TX counter */
+	{
+	  tmpcnt=counters;
+	  while (tmpcnt)
+	    {
+	      if (!memcmp(&(this->ip.src.s_addr), &(tmpcnt->address), sizeof(tmpcnt->address)) &&
+		  tmpcnt->txcounter == 0)
+		tmpcnt->txcounter=this->counters.bcnt;
+	      tmpcnt=tmpcnt->next;
+	    }
+	}
+      this = iptc_next_rule(this, &handle);
+    }
+  free_handle(&handle);
+  return 1;
 }
 
 int iptables_add_delete_line(int type,

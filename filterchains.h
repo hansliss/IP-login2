@@ -1,3 +1,6 @@
+#ifndef _FILTERCHAINS_H
+#define _FILTERCHAINS_H
+
 #include <netinet/in.h>
 
 /*
@@ -28,12 +31,22 @@ void fchain_delrule(struct in_addr address, char *spec);
   */
 void fchain_unloadall();
 
+typedef struct counternode_s
+{
+  struct in_addr address;
+  u_int64_t rxcounter;
+  u_int64_t txcounter;
+  struct counternode_s *next;
+} *counternode;
+
+/*
+  Retrieve RX and TX byte counters
+  */
+int fchain_getcounters(char *spec, counternode requested_counters);
+
 /*
   Initialize the 'filterchains' system. Well, set used_chains to NULL..
   */
 void fchain_init();
 
-
-
-
-
+#endif

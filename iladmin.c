@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <iplogin2.h>
+#include <syslog.h>
 #include <hl.h>
 
 #define BUFSIZE 8192
@@ -10,14 +11,15 @@
 int main(int argc, char *argv[])
 {
   namelist lines=NULL, tmplist;
-  char command[BUFSIZE];
-  char address[BUFSIZE];
-  char account[BUFSIZE];
-  char chains[BUFSIZE];
+  static char command[BUFSIZE];
+  static char address[BUFSIZE];
+  static char account[BUFSIZE];
+  static char chains[BUFSIZE];
   char *conffile=CONFFILE;
   char *clientname=NULL;
   varlist junk_vars=NULL;
-  char tmpbuf[BUFSIZE];
+  static char tmpbuf[BUFSIZE], clientname_buf[BUFSIZE];
+  int syslog_facility=LOG_USER, i;
 
   int ok;
   if (argc!=1 && argc!=2)
@@ -34,14 +36,14 @@ int main(int argc, char *argv[])
       return -1;
     }
   conf_rewind();
-  if (!conf_next("client", tmpbuf, sizeof(tmpbuf), &junk_vars))
+  if (!conf_next("client", clientname_buf, sizeof(clientname_buf), &junk_vars))
     {
       fprintf(stderr,"No clients found in %s\n",conffile);
       return -1;
     }
   freevarlist(&junk_vars);
   conf_cleanup();
-  clientname=tmpbuf;
+  clientname=clientname_buf;
 #endif
   if (argc==2)
     {
@@ -53,6 +55,24 @@ int main(int argc, char *argv[])
       clientname=argv[1];
     }
   fprintf(stderr, "[Using client %s in %s]\n", clientname, conffile);
+
+  /* Find out what facility to syslog to. Default is defined at top */
+  if (conf_getvar(conffile,"client",clientname,"syslog_facility",tmpbuf,BUFSIZE))
+    {
+      for (i=0;facilitynames[i].c_name;i++)
+	if (!strcasecmp(tmpbuf,facilitynames[i].c_name))
+	  syslog_facility=facilitynames[i].c_val;
+    }
+
+  /* Find out our program name for syslog */
+  if (!conf_getvar(conffile,"client",clientname,"syslog_name",tmpbuf,BUFSIZE))
+    {
+      fprintf(stderr,"syslog_name is missing for this <client>. Check configuration file\n");
+      return 0;
+    }
+
+  openlog(tmpbuf, LOG_PID, syslog_facility);
+
   while (1)
     {
       ok=0;

@@ -244,7 +244,7 @@ int hlcrypt_Send(SOCKET s, unsigned char *string, HLCRYPT_HANDLE h)
       while (m<PSIZE)
 	packet[m++]=rand() % 0x100;
 
-      if (h && h->encryption==ENCRYPTION_SIMPLE)
+      if (!h || (h && h->encryption==ENCRYPTION_SIMPLE))
 	{
 	  /* Calculate a new stream key before this cleartext is encrypted */
 	  makekey(tmpbuf, sizeof(tmpbuf), lc,
@@ -292,7 +292,7 @@ int hlcrypt_Receive(SOCKET s, unsigned char *string, int maxlen, int timeout, HL
       if (readblock(s, timeout, packet, PSIZE) > 0)
 	{
 
-	  if (h && h->encryption==ENCRYPTION_SIMPLE)
+	  if (!h || (h && h->encryption==ENCRYPTION_SIMPLE))
 	    {
 	      /* Decrypt this packet */
 	      for (j=0;j<PSIZE;j++)
@@ -332,7 +332,6 @@ int hlcrypt_Receive(SOCKET s, unsigned char *string, int maxlen, int timeout, HL
     }
   return strlen(string);
 }
-
 
 int hlcrypt_AuthClient(SOCKET csocket, unsigned char *local_key,
 		       unsigned char *remote_key, HLCRYPT_HANDLE *h)
@@ -452,7 +451,10 @@ int hlcrypt_AuthClient(SOCKET csocket, unsigned char *local_key,
       return 1;
     }
   else
-    return 0;
+    {
+      syslog(LOG_ERR, "No response or wrong responce received");
+      return 0;
+    }
 }
 
 int hlcrypt_AuthServer(SOCKET csocket, unsigned char *remote_key,

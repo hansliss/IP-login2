@@ -53,6 +53,10 @@ usernode addUser(usernode *l, char *account, char *session_id,
 	      new_user->last_sent=0;
 	      new_user->last_stat=0;
 	      new_user->statmit_count=0;
+	      new_user->rxcounter=0;
+	      new_user->txcounter=0;
+	      new_user->rxkbps=0;
+	      new_user->txkbps=0;
 	      new_user->block_installed=0;
 	      new_user->ll_address_set=-1;
 	      new_user->next=(*l);

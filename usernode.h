@@ -69,6 +69,12 @@ typedef struct susernode
      like Radius */
   char session_id[17];
 
+  /* RX and TX counters */
+  u_int64_t rxcounter, txcounter;
+
+  /* TX and TX kbits/s */
+  unsigned int rxkbps, txkbps;
+
   /* Link to next */
   struct susernode *next;
 } *usernode;

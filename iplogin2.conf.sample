@@ -20,6 +20,7 @@ server nomad
 	stat_blockchain=block/b>DROP
 	stat_blocktime=900
 	stat_blockgc=3600
+	counterchain=users
 #	flush_on_start=foo,bar,mangle:users
 #	tracefile=./iplogin2.trace
 #	ping_source=130.238.131.234

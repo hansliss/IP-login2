@@ -32,6 +32,7 @@
 
 #define BUFSIZE 8192
 
+#define COUNTER_INTERVAL (2*60)
 #define GC_PERIOD 2
 #define LOOP_SLEEP 200
 #define MISSSTATPERIOD 1
@@ -55,6 +56,7 @@ void handle_connection(struct config *conf, int csocket, usernode *users)
   char local_key[128], remote_key[128];
   int namelen;
   namelist possible_clients=NULL;
+  HLCRYPT_HANDLE h=NULL;
 #ifdef HAVE_LIBWRAP
   struct request_info req;
 
@@ -106,11 +108,12 @@ void handle_connection(struct config *conf, int csocket, usernode *users)
 		  else /* client key */
 		    {
 		      /* Try to authenticate the client or fail silently */
-		      if (hlcrypt_AuthServer(csocket, remote_key, local_key, NULL))
+		      if (hlcrypt_AuthServer(csocket, remote_key, local_key, &h))
 			{
 			  /* Receive and handle a command now, the client
 			     is OK */
-			  docommand(conf, csocket, clientname, users);
+			  docommand(conf, csocket, clientname, users, h);
+			  hlcrypt_freeHandle(&h);
 			}
 		    }
 		}
@@ -122,6 +125,63 @@ void handle_connection(struct config *conf, int csocket, usernode *users)
 #endif
   /*  shutdown(csocket, 2);*/
   close(csocket);
+}
+
+/*
+  Retrive TX and RX counters for all the users
+  */
+void retrieve_counters(struct config *conf, usernode users)
+{
+  counternode counters=NULL, tmpcounter;
+  usernode thisuser=users;
+  if (!strlen(conf->counterchain))
+    return;
+  while (thisuser)
+    {
+      if (!(tmpcounter=(counternode)malloc(sizeof(struct counternode_s))))
+	{
+	  while(counters)
+	    {
+	      tmpcounter=counters->next;
+	      free(counters);
+	      counters=tmpcounter;
+	    }
+	  syslog(LOG_ERR, "Memory allocation error in retrieve_counters()");
+	  return;
+	}
+      memcpy(&(tmpcounter->address), &(thisuser->address), sizeof(thisuser->address));
+      tmpcounter->rxcounter=0;
+      tmpcounter->txcounter=0;
+      tmpcounter->next=counters;
+      counters=tmpcounter;
+      thisuser=thisuser->next;
+    }
+  if (fchain_getcounters(conf->counterchain, counters))
+    {
+      tmpcounter=counters;
+      while (tmpcounter)
+	{
+	  thisuser=users;
+	  while (thisuser)
+	    {
+	      if (!memcmp(&(thisuser->address), &(tmpcounter->address), sizeof(tmpcounter->address)))
+		{
+		  thisuser->rxkbps=8*((long double)(tmpcounter->rxcounter - thisuser->rxcounter)/1024.0)/COUNTER_INTERVAL;
+		  thisuser->txkbps=8*((long double)(tmpcounter->txcounter - thisuser->txcounter)/1024.0)/COUNTER_INTERVAL;
+		  thisuser->rxcounter=tmpcounter->rxcounter;
+		  thisuser->txcounter=tmpcounter->txcounter;
+		}
+	      thisuser=thisuser->next;
+	    }
+	  tmpcounter=tmpcounter->next;
+	}
+    }
+  while(counters)
+    {
+      tmpcounter=counters->next;
+      free(counters);
+      counters=tmpcounter;
+    }
 }
 
 /*
@@ -274,7 +334,7 @@ void savestate_helper(int do_quit, char *n, usernode *s, socketnode *a, void *h)
   else
     {
       if (filename)
-	do_save_state(-1, filename, *users);
+	do_save_state(-1, filename, *users, NULL);
       if (do_quit)
 	{
 	  do_reset(users);
@@ -321,6 +381,8 @@ int mainloop(struct config *conf, int command_server_socket)
   time_t missstat_last=0;
   int missstat_count=0;
 
+  time_t counters_last=0;
+
   time_t stat_gc_last=0;
 
   time_t now=0, lastgc=0, elapsed;
@@ -358,7 +420,7 @@ int mainloop(struct config *conf, int command_server_socket)
 
   /* If 'loadfile' is non-empty, load state from the file */
   if (strlen(conf->loadfile)>0)
-    do_load_state(-1, conf->loadfile, &users, &(conf->defaultping.ping_source), conf->accounting_handle);
+    do_load_state(-1, conf->loadfile, &users, &(conf->defaultping.ping_source), conf->accounting_handle, NULL);
 
   /* Prepare for saving functionality - just save the filename */
   savestate_helper(0, conf->loadfile, &users, &allsockets, conf->accounting_handle);
@@ -518,6 +580,12 @@ int mainloop(struct config *conf, int command_server_socket)
 
 
 	}
+      if ((now - counters_last) > COUNTER_INTERVAL)
+	{
+	  retrieve_counters(conf, users);
+	  counters_last=now;
+	}
+
       trace_msg("Sending requests");
       
       /* Finally, send out all those ping packets */
