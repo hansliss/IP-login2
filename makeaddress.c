@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -15,7 +16,7 @@
 #include <winsock2.h>
 #endif
 
-#include "hl.h"
+#include "makeaddress.h"
 
 /* Translate an ASCII hostname or ip address to a struct in_addr - return 0
    if unable */

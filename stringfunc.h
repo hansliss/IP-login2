@@ -15,8 +15,5 @@ void cleanupstring(char *string);
   */
 void chop(char *string);
 
-/* Base64 encode/decode */
-int b64_encode(unsigned char *indata, int indatalen, char *result, int reslen);
-int b64_decode(unsigned char *indata, int indatalen, char *result, int reslen);
 
 #endif

@@ -18,7 +18,8 @@
 #if HAVE_STRING_H==1
 #include <string.h>
 #endif
-#include "hl.h"
+#include "b64.h"
+#include "genseed.h"
 #include "rijndael-api-fst.h"
 
 #define BUFSIZE 8192

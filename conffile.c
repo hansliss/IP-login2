@@ -19,7 +19,8 @@
 #if HAVE_STRING_H==1
 #include <string.h>
 #endif
-#include "hl.h"
+#include "stringfunc.h"
+#include "conffile.h"
 
 #define CONFFILE_BUFSIZE 1024
 

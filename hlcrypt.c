@@ -21,7 +21,12 @@
 #if HAVE_STRING_H==1
 #include <string.h>
 #endif
-#include "hl.h"
+#include "rsaref_global.h"
+#include "md4.h"
+#include "md5.h"
+#include "sha1.h"
+#include "uu_aes.h"
+#include "hlcrypt.h"
 
 #ifndef WIN32
 int getLastSockErr() { return errno; }

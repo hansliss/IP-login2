@@ -15,7 +15,8 @@
 #if HAVE_STRING_H==1
 #include <string.h>
 #endif
-#include "hl.h"
+#include "stringfunc.h"
+#include "varlist.h"
 
 /* Add a name:value pair to the end of a 'varlist'.
    Cease to function on allocation errors */

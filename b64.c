@@ -51,8 +51,8 @@ int b64_encode(unsigned char *indata, int indatalen, char *result, int reslen)
   return (j+4);
 }
 
-int b64_decode(unsigned char *indata, int indatalen, char *result, int reslen)
-{
+int b64_decode(unsigned char *indata, int indatalen, char *result, int reslen){
+
   int i, j, r=0;
   unsigned char A,B,C,D,a,b,c;
   if ((indatalen % 4)!=0)
