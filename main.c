@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define SYSLOG_NAMES
+#define SYSLOG_NAMES_H
 #include <syslog.h>
 #include <signal.h>
 #include <arpa/inet.h>
@@ -20,12 +22,13 @@
 
 char *versionstring_parts[]=
 {
-  "iplogin2",
-  "2.2.4",
+  PACKAGE,
+  VERSION,
   "[command dispatcher]",
   "[code cleanup]",
   "[configurable blocking]",
   "[rich chain specs]",
+  "[autoconf]",
   __DATE__,
   __TIME__
 };

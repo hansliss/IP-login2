@@ -1,6 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include "autoconfig.h"
 #include <netinet/in.h>
 
 #define CONFBSIZE 8192
