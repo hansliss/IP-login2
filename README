@@ -2,7 +2,9 @@ iplogin2
 
 ********** Don't try to build this on non-Linux systems. It will not work. ***********
 
-*** iptables ***
+------------------------------------------------------
+iptables
+
 You need sources for iptables to compile this, because the build
 process will link the target statically to the iptables libraries,
 which have to be built non-shared.
@@ -23,7 +25,9 @@ show it where they are:
 You will also need to have full permissions in the iptables source
 directory, obviously.
 
-*** API Library ***
+------------------------------------------------------
+API Library
+
 This package includes a convenience library for building iplogin2
 command clients, like CGI programs and the like. It will be installed
 as (prefix)/lib/libiplogin2.a with the header file
@@ -34,7 +38,9 @@ Another library with several utility functions will be installed, as
 
 You will need to link to both if you want to use the API.
 
-*** Libwrap ***
+------------------------------------------------------
+Libwrap
+
 If you want access control for the command connections, beyond what
 the authentication mechanism provides you need libwrap.a, which is
 included in the tcp_wrappers package. Note: Some libwrap installations
@@ -42,12 +48,16 @@ seem to need additional libraries to link. If yours does this, add
 the libraries to Makefile.in (LIBS) and re-run 'configure' - or re-run
 'configure' with the '--without-libwrap' option to turn it off
 
-*** OpenSSL ***
+------------------------------------------------------
+OpenSSL
+
 You need to have OpenSSL libraries installed to compile iplogin2, too.
 If they're not in a standard place, you can point configure to them,
 with '--with-openssl=<dir>'.
 
-*** Accounting ***
+------------------------------------------------------
+Accounting
+
 IP-login2 supports a dynlib-based accounting mechanism for the
 DYI-minded. If libdl.a is available, the build process with build an
 example library called 'acclib_test', which is also installed by
@@ -55,7 +65,9 @@ example library called 'acclib_test', which is also installed by
 about how to use this - it is enabled by default, so turn it off
 when you've played long enough with it.
 
-*** Utilities ***
+------------------------------------------------------
+Utilities 
+
 iladmin is a menu-based (sort of) utility which can be used to test 
 iplogin2, check status, save and load, and quit. iladmin is built with a
 hardwired path to the configuration file, and if you don't provide
@@ -70,7 +82,9 @@ the path to a configuration file, a client name, and a command (within
 quotes) on its command line. It will send the command to iplogin2 and
 print the result on stdout.
 
-*** Starting
+------------------------------------------------------
+Starting iplogin2
+
 To get iplogin2 up and running you need a configuration file.
 
 A localized copy of iplogin2.conf.sample will be installed as
@@ -95,12 +109,11 @@ To test, try /opt/iplogin2/bin/iladmin, type "4" (to enter a command)
 and then "help". You should get a command list in response.
 
 It is a good idea to start iplogin2 from init (8), and this can
-be accomplished by adding a line to /etc/inittab:
+be accomplished by adding a line like this to /etc/inittab and running 'init q':
 
-il:5:respawn:/opt/iplogin2/bin/iplogin2 /opt/iplogin2/etc/iplogin2.conf nomad -l /var/spool/iplogin2.users
+il:45:respawn:/opt/iplogin2/bin/iplogin2 /opt/iplogin2/etc/iplogin2.conf nomad -l /var/spool/iplogin2.users
 
-*************************************************************************
-
+------------------------------------------------------
 Targets:
 
 iplogin2	The main server daemon. Handles user login/logout. Statically linked and stripped.
@@ -111,17 +124,55 @@ acclib_test.so	Accounting library example
 ilcmd		A single-command administration client
 iladmin		Test client sending random commands from a list
 
------------------------------------
-2.2.4
-Changed the handling of filterchain specs, to allow for source, destination
-and bidirectional filters, and added an option for specifying target to the
-filter lines. Syntax: [table]:chain[/[sdb]][>target] where "s", "d" and "b"
-denotes "source", "destination" and "both", respectively. The default value
-for "table" is "filter", for "direction" "s" and for "target" "ACCEPT".
-Added a better kind of command dispatcher, by unifying the command handler
-functions and adding them to the command definition array. This saved on a
-huge switch() statement and enabled me to distribute the server configuration
-struct more freely throughout the program.
-By distributing the config struct, I managed to make the block chain
-parameters dynamic and configurable, thus adding more configuration params
-to the conffile. See config.h for details.
+------------------------------------------------------
+About filter chain specifications:
+
+'iptables' filter chain specifications are used both when logging in
+users and when specifying a blocking chain in the configuration file.
+
+The format of these specifications is as follows:
+
+ [table]:chain[/{sdb}][>target]
+
+ where "s", "d" and "b" denotes "source", "destination" and "both", respectively.
+
+The default values are
+	table		filter
+	direction	s
+	target		ACCEPT
+
+A block chain is best specified as "block/b>DROP" or something equivalent.
+
+------------------------------------------------------
+About filter chains
+
+You will have to design a iptables filter system that links iplogin2's
+chain(s) into the FORWARD chain at an appropriate place, to allow
+non-logged-in users to access the login service, DNS, DHCP and
+anything else necessary for logging in, while not allowing any other
+traffic.
+
+You may also need to have an equivalent mechanism in the PREROUTING
+chain in the 'nat' table, so you probably want iplogin2 to add users
+to at least "users" and "nat:users". If you use libiplogin2.a,
+just specify the "chains" parameter as "users,nat:users".
+
+The block chain is used for blocking users who make repeated accesses
+to the login system, usually by running an automatic login program on
+their client machine. They are simply added to the block chain if one
+is defined in the configuration file, and removed again after a
+preselected time has passed.
+
+You will have to make sure that this block chain is actually called
+from somewhere. Please note, also, that the default target for filter
+chain specifications is always "ACCEPT", so for a block chain you will
+definitely want to select your own DROP-related target.
+
+------------------------------------------------------
+CGI clients
+
+There is no "official" CGI package for using IP-login2 as yet.
+
+The file "nomad-IP-login-cgi.patch" contains a patch for
+IP-login-010914 (part of Bifrost Nomad) to make the CGI program
+included use IP-login2. You are mostly on your own here, though.
