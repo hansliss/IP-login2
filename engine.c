@@ -37,6 +37,8 @@
 #define LOOP_SLEEP 200
 #define MISSSTATPERIOD 1
 
+extern unsigned int alarmtime;
+
 /*
   Check and authenticate a new incoming command server connection
   before handing it over to docommand().
@@ -283,7 +285,7 @@ void receive_replies(socketnode allsockets, usernode users, int ident, int timeo
 	}
 
       /* Check if there is anything to receive */
-      if (select(maxsock+1, &myfdset, NULL, NULL, &select_timeout))
+      if (select(maxsock+1, &myfdset, NULL, NULL, &select_timeout)>0)
 	{
 	  for (i=0; i<(maxsock+1); i++)
 	    if (FD_ISSET(i, &myfdset))
@@ -361,7 +363,13 @@ void savestate(int s)
     do_quit=1;
 
   savestate_helper(do_quit, NULL, NULL, NULL, NULL);
-  signal(SIGUSR1, savestate);
+  if (s == SIGALRM)
+    {
+      signal(SIGALRM, savestate);
+      alarm(alarmtime);
+    }
+  else
+    signal(SIGUSR1, savestate);
 }
 
 /* See the header file */
@@ -427,6 +435,11 @@ int mainloop(struct config *conf, int command_server_socket)
   signal(SIGUSR1, savestate);
   signal(SIGUSR2, savestate);
   signal(SIGTERM, savestate);
+  if (alarmtime != 0)
+    {
+      signal(SIGALRM, savestate);
+      alarm(alarmtime);
+    }
   ftime(&lastcycle);
   
   while (!ready)

@@ -32,6 +32,8 @@ char *versionstring_parts[]=
 int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
 
+unsigned int alarmtime;
+
 #define RET_GENERAL 1
 #define RET_INVOKE 2
 #define RET_SOCKET 3
@@ -306,6 +308,11 @@ int initialize(struct config *conf)
     strncpy(conf->counterchain, tmpbuf2, sizeof(conf->counterchain));
   else
     conf->counterchain[0]='\0';
+
+  if (conf_getvar(conf->conffile,"server",conf->servername,"savetime",tmpbuf2,BUFSIZE))
+    sscanf(tmpbuf2, "%i", &alarmtime);
+  else
+    alarmtime = 0;
 
   return 1;
 }
