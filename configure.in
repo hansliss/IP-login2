@@ -1,6 +1,6 @@
 AC_INIT(main.c)
 PACKAGE=iplogin2
-VERSION=2.2.8
+VERSION=2.2.9
 AC_PREFIX_DEFAULT(/opt/iplogin2)
 AC_CONFIG_HEADER(autoconfig.h)
 AC_PROG_CC
