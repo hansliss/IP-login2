@@ -252,6 +252,33 @@ int iplogin2_logout(char *conffile, char *clientname,
     return 0;
 }
 
+int iplogin2_logoutuser(char *conffile, char *clientname,
+			char *username)
+{
+  unsigned char tmpbuf[BUFSIZE];
+  int n,i;
+  int csocket;
+  HLCRYPT_HANDLE h=NULL;
+  if (!do_connect(conffile, clientname, &csocket, &h))
+    return 0;
+  sprintf(tmpbuf,"deluser %.128s", username);
+  hlcrypt_Send(csocket,tmpbuf, h);
+  if (hlcrypt_Receive(csocket, tmpbuf, BUFSIZE, READ_TIMEOUT, h) > 0)
+    {
+      sscanf(tmpbuf,"%i",&n);
+      for (i=0; i<n; i++)
+	{
+	  if (hlcrypt_Receive(csocket, tmpbuf, BUFSIZE, READ_TIMEOUT, h) <= 0)
+	    break;
+	}
+    }
+  close(csocket);
+  if (!strcmp(tmpbuf,"OK"))
+    return 1;
+  else
+    return 0;
+}
+
 int iplogin2_check(char *conffile, char *clientname, char *address)
 {
   unsigned char tmpbuf[BUFSIZE];
@@ -262,6 +289,29 @@ int iplogin2_check(char *conffile, char *clientname, char *address)
     return 0;
   r=0;
   sprintf(tmpbuf,"check %.128s", address);
+  hlcrypt_Send(csocket,tmpbuf,h);
+  if (hlcrypt_Receive(csocket, tmpbuf, BUFSIZE, READ_TIMEOUT, h) > 0)
+    {
+      sscanf(tmpbuf,"%i",&n); /* Should be 1 */
+      if ((n == 1) &&
+         (hlcrypt_Receive(csocket, tmpbuf, BUFSIZE, READ_TIMEOUT, h) >0) &&
+         !strcasecmp(tmpbuf, "Yes"))
+       r=1;
+    }
+  close(csocket);
+  return r;
+}
+
+int iplogin2_checkuser(char *conffile, char *clientname, char *username)
+{
+  unsigned char tmpbuf[BUFSIZE];
+  int n,r;
+  int csocket;
+  HLCRYPT_HANDLE h=NULL;
+  if (!do_connect(conffile, clientname, &csocket, &h))
+    return 0;
+  r=0;
+  sprintf(tmpbuf,"checkuser %.128s", username);
   hlcrypt_Send(csocket,tmpbuf,h);
   if (hlcrypt_Receive(csocket, tmpbuf, BUFSIZE, READ_TIMEOUT, h) > 0)
     {

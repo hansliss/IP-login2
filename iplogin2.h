@@ -60,11 +60,26 @@ int iplogin2_logout(char *conffile, char *clientname,
 	   char *address);
 
 /*
-  Check if a user is logged in.
+  Log out a user.
 
   'conffile' is the name of the configuration file.
   'clientname' is the name of the client entry to use
-  'address' is the IP address of the user
+  'username' is the username
+
+  The server name, client and server key etc are read from the
+  configuration file.
+  
+  Returns 0 if it fails, !=0 otherwise.
+  */
+int iplogin2_logoutuser(char *conffile, char *clientname,
+			char *username);
+
+/*
+  Check if a host is logged in.
+
+  'conffile' is the name of the configuration file.
+  'clientname' is the name of the client entry to use
+  'address' is the IP address of the host
 
   The server name, client and server key etc are read from the
   configuration file.
@@ -72,6 +87,20 @@ int iplogin2_logout(char *conffile, char *clientname,
   Returns 1 if the user is logged in, 0 otherwise.
   */
 int iplogin2_check(char *conffile, char *clientname, char *address);
+
+/*
+  Check if a user is logged in.
+
+  'conffile' is the name of the configuration file.
+  'clientname' is the name of the client entry to use
+  'username' is the username
+
+  The server name, client and server key etc are read from the
+  configuration file.
+
+  Returns 1 if the user is logged in, 0 otherwise.
+  */
+int iplogin2_checkuser(char *conffile, char *clientname, char *username);
 
 /*
   Get info about a user.

@@ -46,6 +46,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf,
 void send_stat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 void dump_tstat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 void do_check(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void do_check_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 void del_client(int csocket, usernode thisuser, char *tmpbuf, usernode *users, struct config *conf);
 void del_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 void del_host(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
@@ -84,6 +85,7 @@ void do_delblock(int csocket, namelist parms, usernode *users, struct config *co
 #define COMMAND_CHECK 18
 #define COMMAND_DELUSER 19
 #define COMMAND_LIST 20
+#define COMMAND_CHECKUSER 21
 #define COMMAND_UNKNOWN -1
 #define COMMAND_ARGS -2
 #define COMMAND_PERMS -3
@@ -104,6 +106,8 @@ struct commandtabnode {
      "Dump traffic stats:\ttstat <file name>"},
     {"check",	COMMAND_CHECK,	1, do_check,
      "Check:\t\tcheck <address>"},
+    {"checkuser",COMMAND_CHECKUSER,1, do_check_user,
+     "Check user:\t\tcheckuser <user>"},
     {"del",	COMMAND_DEL,	1, del_host,
      "Delete an address:\tdel <address>"},
     {"deluser",	COMMAND_DELUSER,	1, del_user,
@@ -745,7 +749,7 @@ void dump_tstat(int csocket, namelist parms, usernode *users, struct config *con
 /*
   Command: CHECK
 
-  Check if a user is logged in
+  Check if a hose is logged in
   This command accepts hostnames or IP adresses.
   */
 void do_check(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
@@ -771,6 +775,32 @@ void do_check(int csocket, namelist parms, usernode *users, struct config *conf,
   else /* makeaddress */
     {
       syslog(LOG_NOTICE, "Check: %s not found", parms->name); 
+      hlcrypt_Send(csocket,"No", h);
+    }
+}
+
+/*
+  Command: CHECKUSER
+
+  Check if a user is logged in
+  This command accepts an username.
+  */
+void do_check_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+{
+  usernode thisnode;
+
+  /*  syslog(LOG_NOTICE, "Command: checkuser");*/
+  /* Find the given user in our list */
+  hlcrypt_Send(csocket,"1", h);
+  if ((thisnode=findUser_account(*users, parms->name)))
+    {
+      syslog(LOG_NOTICE, "Checkuser: %s/%s found", parms->name, inet_ntoa(thisnode->address));
+      check_flood(thisnode, conf);
+      hlcrypt_Send(csocket,"Yes", h);
+    }
+  else /* findUser_account */
+    {
+      syslog(LOG_NOTICE, "Checkuser: %s not found", parms->name); 
       hlcrypt_Send(csocket,"No", h);
     }
 }
