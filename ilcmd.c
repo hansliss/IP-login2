@@ -9,9 +9,8 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#include <conffile.h>
-#include <hlcrypt.h>
-#include <divlib.h>
+#include "autoconfig.h"
+#include <hl.h>
 #include <iplogin2.h>
 
 #define BUFSIZE 8192

@@ -28,6 +28,10 @@ void cleanupstring(char *string);
   */
 void chop(char *string);
 
+/* Encode/decode B64 data */
+
+int b64_encode(unsigned char *indata, int indatalen, char *result, int reslen);
+int b64_decode(unsigned char *indata, int indatalen, char *result, int reslen);
 #endif
 #ifndef VARLIST_H
 #define VARLIST_H
