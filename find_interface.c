@@ -14,6 +14,7 @@
 #include <syslog.h>
 #include <sys/ioctl.h>
 
+#include "config.h"
 #include "usernode.h"
 
 #define RETURN_ERROR -2

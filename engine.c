@@ -1,4 +1,3 @@
-#include <tcpd.h>
 #include <sys/time.h>
 #include <sys/timeb.h>
 #include <string.h>
@@ -12,10 +11,8 @@
 #include <stdio.h>
 #include <sys/ioctl.h>
 
-#include <hlcrypt.h>
-#include <varlist.h>
-#include <conffile.h>
-#include <divlib.h>
+#include "autoconfig.h"
+#include <hl.h>
 #include "socketnode.h"
 #include "commands.h"
 #include "filterchains.h"
@@ -28,6 +25,10 @@
 #include "engine.h"
 
 #include "trace.h"
+
+#ifdef HAVE_LIBWRAP
+#include <tcpd.h>
+#endif
 
 #define BUFSIZE 8192
 
@@ -54,6 +55,7 @@ void handle_connection(struct config *conf, int csocket, usernode *users)
   char local_key[128], remote_key[128];
   int namelen;
   namelist possible_clients=NULL;
+#ifdef HAVE_LIBWRAP
   struct request_info req;
 
   /* Check client with libwrap */
@@ -63,6 +65,7 @@ void handle_connection(struct config *conf, int csocket, usernode *users)
     syslog(deny_severity, "connection from %s refused", eval_client(&req));
   else
     {
+#endif
       syslog(allow_severity, "connect from %s", eval_client(&req));
       /* Get peer IP address */
       namelen=sizeof(client_sa);
@@ -114,7 +117,9 @@ void handle_connection(struct config *conf, int csocket, usernode *users)
 	      freenamelist(&possible_clients);
 	    }
 	}
+#ifdef HAVE_LIBWRAP
     }
+#endif
   /*  shutdown(csocket, 2);*/
   close(csocket);
 }

@@ -56,4 +56,9 @@ struct config
 
 char *params(struct config *conf);
 
+#ifndef USER_TYPE_NONE
+#define USER_TYPE_NONE 0
+#define USER_TYPE_ARPPING 1
+#define USER_TYPE_PING 2
+#endif
 #endif

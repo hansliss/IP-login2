@@ -4,7 +4,7 @@
 #include <netinet/in.h>
 #include <time.h>
 #include <linux/if_arp.h>
-#include <iplogin2.h>
+#include <hl.h>
 
 /************* List handling code **************/
 

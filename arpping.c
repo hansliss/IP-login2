@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 
+#include "config.h"
 #include "usernode.h"
 #include "socketnode.h"
 #include "mymalloc.h"

@@ -8,10 +8,8 @@
 #include <arpa/inet.h>
 #include <time.h>
 
-#include <varlist.h>
-#include <hlcrypt.h>
-#include <conffile.h>
-#include <divlib.h>
+#include "autoconfig.h"
+#include <hl.h>
 #include "usernode.h"
 #include "filterchains.h"
 #include "find_interface.h"

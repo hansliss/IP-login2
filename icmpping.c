@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 
+#include "config.h"
 #include "socketnode.h"
 #include "usernode.h"
 #include "mymalloc.h"

@@ -1,5 +1,4 @@
-#ifndef AUTOCONFIG_H
-#define AUTOCONFIG_H
+/* Configuration header file for Taylor UUCP.  -*- C -*-  */
 
 /* If your compiler does not use const correctly, then undefine it
    here.  This #undef is commented out by the configure script if it
@@ -54,11 +53,8 @@
 #define HAVE_SYS_FS_TYPES_H 0 /* <sys/fs_types.h> */
 #define HAVE_USTAT_H 0 /* <ustat.h> */
 #define HAVE_SYS_STATVFS_H 0 /* <sys/statvfs.h> */
-#define HAVE_TCPD_H 0 /* tcpd.h - libwrap */
 
-#define HAVE_LIBCRYPTO 0 /* libwrap.a */
-#define HAVE_LIBWRAP 0 /* libwrap.a */
-#define HAVE_LIBDL 0 /* libdl.a */
+#define HAVE_LIBCRYPTO 0 /* OpenSSL libcrypto.a */
 
 /* If major and minor are not defined in <sys/types.h>, but are in
    <sys/mkdev.h>, set MAJOR_IN_MKDEV to 1.  If they are in
@@ -475,4 +471,3 @@
 #undef _POSIX_SOURCE
 #undef _MINIX
 #undef _POSIX_1_SOURCE
-#endif

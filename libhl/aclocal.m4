@@ -56,32 +56,8 @@ AC_DEFUN(AC_LIBRARY_NET, [
     LIBS="-lresolv $LIBS", , ))
   ])
 
-AC_DEFUN(AC_LOCAL_LIBS, [
-dnl --with-libhl-sources
-AC_CHECK_HEADER(hl.h, AC_CHECK_LIB(hl,main, ,[libhlpath=./libhl]), [libhlpath=./libhl])dnl
-
-AC_ARG_WITH(libhl-sources,
-[  --with-libhl-sources=DIR	point out where the sources for libhl are located],
-[case "$withval" in
-	no)	AC_MSG_ERROR(You need libhl to compile this)
-		;;
-	yes)
-		;;
-	*)	libhlpath=`echo "$withval" | sed 's/\/$//'`
-		;;
-esac
-])dnl
-
-if test ! -z "$libhlpath"; then
-	AC_MSG_RESULT([Using local libhl in $libhlpath])
-	CFLAGS="$CFLAGS -I$libhlpath"
-	CPPFLAGS="$CPPFLAGS -I$libhlpath"
-	LDFLAGS="$LDFLAGS -L$libhlpath"
-	LOCAL_TARGETS="$LOCAL_TARGETS $libhlpath/libhl.a"
-	AC_SUBST(libhlpath)
-	LOCALLIB_DIRS="$LOCALLIB_DIRS $libhlpath"
-	(cd $libhlpath; configure $1)
-fi
-
-AC_SUBST(LOCALLIB_DIRS)
+AC_DEFUN(AC_LIBRARY_CRYPTO, [
+  AC_CHECK_FUNC(SHA1_Init)
+    AC_CHECK_LIB(crypto, SHA1_Init)
 ])
+

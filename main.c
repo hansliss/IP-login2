@@ -12,13 +12,12 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#include <conffile.h>
+#include <hl.h>
 #include "usernode.h"
 #include "engine.h"
 #include "config.h"
 #include "trace.h"
 #include "accounting.h"
-#include <iplogin2.h>
 
 char *versionstring_parts[]=
 {

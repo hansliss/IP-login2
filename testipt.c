@@ -8,7 +8,8 @@
 #include <fcntl.h>
 #include <iptables.h>
 #include <string.h>
-#include <varlist.h>
+
+#include <hl.h>
 #include "filterchains2.h"
 
 iptc_handle_t handle=NULL;

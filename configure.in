@@ -9,7 +9,6 @@ AC_SUBST(PACKAGE)
 AC_SUBST(VERSION)
 
 dnl Checks for programs.
-AC_PROG_CC
 if test $CC = "gcc"; then
 	CFLAGS="$CFLAGS -Wall"
 fi
@@ -24,6 +23,7 @@ AC_ARG_WITH(openssl,
 [  --with-openssl=DIR      point out where OpenSSL is installed],
 [case "$withval" in
         no) opensslpath=""
+		AC_MSG_ERROR([You need OpenSSL to build this])
                 ;;
         yes)
                 ;;
@@ -39,36 +39,75 @@ if test ! -z "$opensslpath"; then
         CFLAGS="$CFLAGS -I$opensslpath/include"
         CPPFLAGS="$CPPFLAGS -I$opensslpath/include"
         LDFLAGS="$LDFLAGS -L$opensslpath/lib"
+	withparm="--with-openssl=$opensslpath"
 fi
+
+AC_LOCAL_LIBS($withparm)
+
+dnl --with-libwrap
+libwrappath="/usr"
+
+AC_ARG_WITH(libwrap,
+[  --with-libwrap=DIR      Use libwrap and point out the parent to include/tcpd.h and lib/libwrap.a],
+[case "$withval" in
+        no)     libwrappath=""
+                ;;
+        yes)
+                ;;
+        *)
+                libwrappath="$withval"
+                ;;
+esac
+])dnl
+
+AC_SUBST(libwrappath)dnl
+
+if test ! -z "$libwrappath"; then
+	if test "$libwrappath" != "/usr"; then
+	        CFLAGS="$CFLAGS -I$libwrappath/include"
+	        CPPFLAGS="$CPPFLAGS -I$libwrappath/include"
+	        LDFLAGS="$LDFLAGS -L$libwrappath/lib"
+	fi
+	
+	AC_CHECK_HEADER(tcpd.h,[
+		AC_CHECK_LIB(wrap,main, ,AC_MSG_RESULT(********* No libwrap.a found: not using libwrap))],
+		HAVE_LIBWRAP=;AC_MSG_RESULT(********* No tcpd.h found: not using libwrap))
+else
+	AC_MSG_RESULT(********* Not using libwrap)
+fi
+
+AC_SUBST(LOCAL_TARGETS)
 
 dnl --with-iptables-sources
 
 iptspath="./iptables-1.2.5"
 
 AC_ARG_WITH(iptables-sources,
-[  --with-iptables-sources=DIR      point out where the sources for iptables (>1.2.5) is installed],
+[  --with-iptables-sources=DIR      point out where the sources for iptables (>=1.2.5) are located],
 [case "$withval" in
         no) iptspath=""
                 ;;
         yes)
                 ;;
         *)
-                iptspath="$withval"
+                iptspath=`echo $withval | sed 's/\/$//'`
                 ;;
 esac
 ])dnl
 
+if test ! -z "$iptspath"; then
+	CFLAGS="$CFLAGS -I$iptspath/include"
+	CPPFLAGS="$CPPFLAGS -I$iptspath/include"
+else
+	AC_MSG_ERROR([I don't know where the iptables sources are. I need them!])
+fi
+
 AC_SUBST(iptspath)dnl
 
 dnl Checks for libraries.
-AC_CHECK_LIB(div,main)
-AC_CHECK_LIB(crypto,main)
-AC_CHECK_LIB(wrap,main)
-AC_CHECK_LIB(varlist,main)
-AC_CHECK_LIB(conffile,main)
-AC_CHECK_LIB(hlcrypt,main)
+AC_CHECK_LIB(crypto,main, ,AC_MSG_ERROR([I need libcrypto.a from OpenSSL to build]))
 AC_CHECK_LIB(resolv,main)
-AC_CHECK_LIB(dl,main)
+AC_CHECK_LIB(dl,main, ,AC_MSG_RESULT([************ No dynloader (libdl.a) found - disabling accounting]))
 
 AC_CHECK_HEADER(openssl/sha.h, ,[opensslpath="/usr/local/ssl"])
 
@@ -77,13 +116,11 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS(\
 	arpa/inet.h\
 	asm/types.h\
-	conffile.h\
 	ctype.h\
-	divlib.h\
 	dlfcn.h\
 	errno.h\
 	fcntl.h\
-	hlcrypt.h\
+	hl.h\
 	iplogin2.h\
 	iptables.h\
 	limits.h\
@@ -96,20 +133,14 @@ AC_CHECK_HEADERS(\
 	signal.h\
 	stdarg.h\
 	stdio.h\
-	stdlib.h\
-	string.h\
 	sys/ioctl.h\
 	sys/socket.h\
 	sys/time.h\
 	sys/timeb.h\
-	sys/types.h\
 	sys/uio.h\
 	sys/wait.h\
 	syslog.h\
-	tcpd.h\
-	time.h\
-	unistd.h\
-	varlist.h)
+	time.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -117,7 +148,6 @@ AC_C_CONST
 dnl Checks for library functions.
 AC_TYPE_SIGNAL
 AC_LIBRARY_NET
-AC_LIBRARY_STD
 
 ##AC_CHECK_FUNCS()
 

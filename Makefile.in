@@ -12,8 +12,11 @@ CC = @CC@
 DEFINES = @DEFS@ -DNO_SHARED_LIBS=1 -DLINUX -DPACKAGE=\"$(PACKAGE)\" -DVERSION=\"$(VERSION)\"
 CFLAGS = -I. @CFLAGS@ $(DEFINES)
 LDFLAGS = @LDFLAGS@ -L/usr/local/lib -L/usr/local/ssl/lib
-LIBS = @LIBS@
+LIBS = -lhl @LIBS@
 INSTALL = @INSTALL@
+LOCAL_TARGETS=@LOCAL_TARGETS@
+LOCALLIB_DIRS=@LOCALLIB_DIRS@
+libhlpath=@libhlpath@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
@@ -31,12 +34,12 @@ LIB_OBJS=
 IPTSRCDIR=@iptspath@
 IPTINCDIR=$(IPTSRCDIR)/include
 IPTLDLIB=$(IPTSRCDIR)/libiptc/libiptc.a $(IPTSRCDIR)/extensions/libext.a
-IPTFLAGS=-I$(IPTINCDIR) -DIPT_LIB_DIR=\"$(IPTLIBDIR)\" -rdynamic
+IPTFLAGS=-DIPT_LIB_DIR=\"$(IPTLIBDIR)\" -rdynamic
 IPT=$(IPTFLAGS) $(IPTLDLIB)
 
 CFLAGS+=-I$(IPTINCDIR)
 
-all: $(TARGET)
+all: $(LOCAL_TARGETS) $(TARGET)
 
 install: all
 	$(top_srcdir)/mkinstalldirs $(bindir)
@@ -44,22 +47,26 @@ install: all
 ##	$(top_srcdir)/mkinstalldirs $(mandir)/man1
 ##	$(INSTALL) $(MAN) $(mandir)/man1/$(MAN)
 
-$(TARGET): $(OBJS) $(IPTSRCDIR)/libiptc/libiptc.a
+$(TARGET): $(OBJS) $(IPTSRCDIR)/extensions/libext.a
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(IPT) $(LDFLAGS) $(LIBS)
 
 $(OBJS): $(SOURCES)
 
-$(IPTSRCDIR)/libiptc/libiptc.a:
+$(IPTSRCDIR)/extensions/libext.a:
 	(cd $(IPTSRCDIR); make NO_SHARED_LIBS=1)
 
 ACC_OPT=-fPIC -O -Wall -shared -Wl,-soname,acclib_test.1.0 -Wl,--version-script,lib.scr
 acclib_test.so:	acclib_test.o
 	${CC} ${ACC_OPT} acclib_test.o -o acclib_test.so
 
+$(libhlpath)/libhl.a:
+	(cd $(libhlpath); make)
+
 clean:
 	/bin/rm -f $(TARGET) *.o core
 
 distclean: clean config-clean
+	(for dir in $(LOCALLIB_DIRS); do (cd $${dir}; make distclean); done)
 
 config-clean: confclean-recursive
 

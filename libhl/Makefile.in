@@ -1,0 +1,81 @@
+PRODUCT = @PRODUCT@
+VERSION = @VERSION@
+
+SHELL = /bin/sh
+top_srcdir = @top_srcdir@
+srcdir = @srcdir@
+
+.SUFFIXES:
+.SUFFIXES: .c .o
+
+CC = @CC@
+DEFINES = @DEFS@
+CFLAGS = -I. @CFLAGS@ $(DEFINES)
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+INSTALL = @INSTALL@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+libdir = @libdir@
+mandir = @mandir@
+includedir = @includedir@
+
+DISTFILES =
+
+TARGET=libhl.a
+LIBHEADER=hl.h
+SOURCES=hexdump.c stringfunc.c makeaddress.c varlist.c conffile.c hlcrypt.c
+OBJS=hexdump.o stringfunc.o makeaddress.o varlist.o conffile.o hlcrypt.o
+LIB_OBJS=
+
+all: $(TARGET)
+
+install: all $(LIBHEADER)
+	$(top_srcdir)/mkinstalldirs $(libdir)
+	$(INSTALL) $(TARGET) $(libdir)/$(TARGET)
+	$(INSTALL) $(LIBHEADER) $(includedir)/$(LIBHEADER)
+##	$(top_srcdir)/mkinstalldirs $(mandir)/man1
+##	$(INSTALL) $(MAN) $(mandir)/man1/$(MAN)
+
+$(TARGET): $(OBJS)
+	ar -r $(TARGET) $(OBJS)
+	ranlib $(TARGET)
+
+$(OBJS): $(SOURCES)
+
+clean:
+	/bin/rm -f $(TARGET) *.o core
+
+distclean: clean config-clean
+
+config-clean: confclean-recursive
+
+confclean-recursive: cfg-clean
+
+cfg-clean:
+	/bin/rm -f Makefile config.h config.status config.cache config.log
+
+mostlyclean: clean
+
+maintainer-clean: clean
+
+# automatic re-running of configure if the configure.in file has changed
+${srcdir}/configure: configure.in 
+	cd ${srcdir} && autoconf
+
+# autoheader might not change config.h.in, so touch a stamp file
+${srcdir}/config.h.in: stamp-h.in
+${srcdir}/stamp-h.in: configure.in 
+		cd ${srcdir} && autoheader
+		echo timestamp > ${srcdir}/stamp-h.in
+
+config.h: stamp-h
+stamp-h: config.h.in config.status
+	./config.status
+Makefile: Makefile.in config.status
+	./config.status
+config.status: configure
+	./config.status --recheck
+
+
+

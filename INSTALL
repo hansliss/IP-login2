@@ -1,8 +1,25 @@
+Don't try to build this on non-Linux systems. It will not work.
+
+You need sources for iptables to compile this, because the build
+process will link the target statically to the iptables libraries,
+which have to be built non-shared. The Makefile can do this for you,
+but you will have to 'make clean' in you iptables directory and point
+it out to 'configure'.
+
+./configure --with-iptables-source=/usr/local/src/iptables-1.2.5
+
+You will also need to have full permissions in the iptables source
+directory, obviously.
+
+You need to have OpenSSL libraries installed to compile iplogin2, too.
+If they're not in a standard place, you can point configure to them,
+with '--with-openssl=<dir>'.
+
 To get iplogin2 up and running you need a configuration file. Edit
-a copy of iplogin.conf.sample to suit your needs and save it as
-iplogin.conf.
+a copy of iplogin2.conf.sample to suit your needs and save it as
+iplogin2.conf.
 You will also need to add a service definition to /etc/services,
-like this:
+something like this:
 	iplogin2	4711/tcp
 
 It is a good idea to start iplogin2 from init (8), and this can
