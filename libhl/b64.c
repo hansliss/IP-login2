@@ -57,7 +57,7 @@ int b64_decode(unsigned char *indata, int indatalen, char *result, int reslen)
   unsigned char A,B,C,D,a,b,c;
   if ((indatalen % 4)!=0)
     return 0;
-  for (i=0, j=0; (i < (indatalen - 3)) && (j < (reslen - 3)); i+=4, j+=3)
+  for (i=0, j=0; (i < (indatalen - 3)) && (j < reslen); i+=4, j+=3)
     {
       A=B64_REVERSE(indata[i]);
       B=B64_REVERSE(indata[i+1]);
@@ -77,12 +77,20 @@ int b64_decode(unsigned char *indata, int indatalen, char *result, int reslen)
 	      if (D != 65)
 		{
 		  c |= D;
-		  result[j+2]=c;
-		  r=j+3;
+		  if (j < reslen-2)
+		    {
+		      result[j+2]=c;
+		      r=j+3;
+		    }
+		  else
+		    r=0;
 		}
 	      else
 		r=j+2;
-	      result[j+1]=b;
+	      if (j < reslen-1)
+		result[j+1]=b;
+	      else
+		r=0;
 	    }
 	  else
 	    r=j+1;
