@@ -15,7 +15,6 @@
 #define READ_TIMEOUT 10000
 #define BUFSIZE 8192
 
-
 /* Authentication and encryption data */
 unsigned char local_challenge[CHALLENGE_SIZE];
 unsigned char remote_challenge[CHALLENGE_SIZE];

@@ -453,3 +453,11 @@ char *hlcrypt_SHA1(unsigned char *string,int slen);
 int hlcrypt_freeHandle(HLCRYPT_HANDLE *h);
 
 #endif
+
+#ifndef _PWDHASH_H
+#define _PWDHASH_H
+
+int pwdcheck(char *hashed, char *passwd);
+
+#endif
+
