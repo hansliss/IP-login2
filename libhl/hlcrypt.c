@@ -447,7 +447,7 @@ int hlcrypt_AuthClient(SOCKET csocket, unsigned char *local_key,
 	       hlcrypt_Send(csocket, tmpbuf, NULL);
 	    }
 	}
-      syslog(LOG_INFO,"Authenticated(%d,%d)",h?(*h)->version:1,h?(*h)->encryption:2);
+      /*      syslog(LOG_INFO,"Authenticated(%d,%d)",h?(*h)->version:1,h?(*h)->encryption:2);*/
       return 1;
     }
   else
@@ -563,7 +563,7 @@ int hlcrypt_AuthServer(SOCKET csocket, unsigned char *remote_key,
 	  return 0;
 	}
     }
-  syslog(LOG_INFO,"Authenticated(%d,%d)",h?(*h)->version:1,h?(*h)->encryption:1);
+  /*  syslog(LOG_INFO,"Authenticated(%d,%d)",h?(*h)->version:1,h?(*h)->encryption:1);*/
 
   return 1;
 }

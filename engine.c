@@ -26,7 +26,7 @@
 
 #include "trace.h"
 
-#ifdef HAVE_LIBWRAP
+#if (HAVE_LIBWRAP == 1)
 #include <tcpd.h>
 #endif
 
@@ -58,7 +58,7 @@ void handle_connection(struct config *conf, int csocket, usernode *users)
   int namelen;
   namelist possible_clients=NULL;
   HLCRYPT_HANDLE h=NULL;
-#ifdef HAVE_LIBWRAP
+#if (HAVE_LIBWRAP == 1)
   struct request_info req;
 
   /* Check client with libwrap */
@@ -68,8 +68,8 @@ void handle_connection(struct config *conf, int csocket, usernode *users)
     syslog(deny_severity, "connection from %s refused", eval_client(&req));
   else
     {
-#endif
       syslog(allow_severity, "connect from %s", eval_client(&req));
+#endif
       /* Get peer IP address */
       namelen=sizeof(client_sa);
       if (getpeername(csocket,(struct sockaddr *)&client_sa,&namelen)!=0)
@@ -121,7 +121,7 @@ void handle_connection(struct config *conf, int csocket, usernode *users)
 	      freenamelist(&possible_clients);
 	    }
 	}
-#ifdef HAVE_LIBWRAP
+#if (HAVE_LIBWRAP == 1)
     }
 #endif
   /*  shutdown(csocket, 2);*/
