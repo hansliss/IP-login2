@@ -13,9 +13,10 @@
   reasons.
   */
 usernode addUser(usernode *l, char *account, char *session_id,
-		       int user_type, struct in_addr *address,
-		       int ifindex, struct in_addr *source, namelist chains,
-		       time_t added, void *accounting_handle)
+		 int user_type, struct in_addr *address,
+		 int ifindex, char *ifname, struct in_addr *source,
+		 namelist chains,
+		 time_t added, void *accounting_handle)
 {
   usernode new_user;
   struct timeb tb;
@@ -39,6 +40,7 @@ usernode addUser(usernode *l, char *account, char *session_id,
 	      strcpy(new_user->account, account);
 	      new_user->user_type=user_type;
 	      new_user->ifindex=ifindex;
+	      strncpy(new_user->ifname, ifname, sizeof(new_user->ifname));
 	      memcpy(&(new_user->address),address, sizeof(struct in_addr));
 	      memcpy(&(new_user->source_address),source,
 		     sizeof(struct in_addr));
@@ -73,7 +75,7 @@ usernode addUser(usernode *l, char *account, char *session_id,
     }
   else
     return addUser(&((*l)->next), account, session_id, user_type, address,
-		      ifindex, source, chains, added, accounting_handle);
+		      ifindex, ifname, source, chains, added, accounting_handle);
 }
 
 /*

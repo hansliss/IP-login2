@@ -239,7 +239,7 @@ int netlink_CheckRoute(int netlink_socket, struct in_addr *dest)
 /* Get interface index and IP address for 'dest' from netlink.
    Return >=0 iff both index and address are found!
 */
-int find_interface(struct in_addr *dest, struct in_addr *src)
+int find_interface(struct in_addr *dest, struct in_addr *src, char *namebuf, int namelen)
 {
   struct sockaddr_nl snl;
   int sock;
@@ -320,6 +320,11 @@ int find_interface(struct in_addr *dest, struct in_addr *src)
 				     &(((struct sockaddr_in*)&ifr[i].ifr_addr)->
 				       sin_addr.s_addr),
 				     sizeof(struct in_addr));
+			      if (namebuf)
+				{
+				  memset(namebuf, 0, namelen);
+				  strncpy(namebuf, ifr[i].ifr_name, namelen-1);
+				}
 			      ret=index;
 			    }
 #if 0
@@ -422,19 +427,19 @@ int main(int argc, char *argv[])
   struct in_addr d, s;
   int idx;
   int i;
-  static char tmpbuf[1024];
+  static char tmpbuf[1024], tmpbuf2[1024];
   s.s_addr=INADDR_ANY;
   openlog("test_netlink", LOG_PERROR|LOG_PID, LOG_USER);
   for (i=1; i<argc; i++)
     {
       if (makeaddress(argv[i], &d))
 	{
-	  idx = find_interface(&d, &s);
+	  idx = find_interface(&d, &s, tmpbuf2, sizeof(tmpbuf2));
 	  if (idx >= 0)
 	    {
 	      strcpy(tmpbuf,inet_ntoa(s));
-	      printf("%s/%s: Interface index %d, src addr=%s\n",
-		     argv[i], inet_ntoa(d), idx, tmpbuf);
+	      printf("%s/%s: Interface index %d, name %s, src addr=%s\n",
+		     argv[i], inet_ntoa(d), idx, tmpbuf2, tmpbuf);
 	    }
 	  else
 	    printf("Error for address %s/%s: ret=%d\n",

@@ -117,7 +117,8 @@ void do_load_state(int csocket, char *filename, usernode *users,
 		      if (splitstring(chainstring, ',', &chains)>0)
 			{
 			  if ((ifindex=find_interface(&address,
-						       &source_address))<0)
+						       &source_address,
+						      tmpbuf, sizeof(tmpbuf)))<0)
 			    {
 			      freenamelist(&chains);
 			      syslog(LOG_ERR,"loadstate: addUser failed");
@@ -137,7 +138,7 @@ void do_load_state(int csocket, char *filename, usernode *users,
 				       sizeof(source_address));
 			      
 			      if (!addUser(users,nstring,NULL,type,&address,
-					      ifindex,&source_address,chains,
+					      ifindex, tmpbuf, &source_address,chains,
 					      added, accounting_handle))
 				{
 				  freenamelist(&chains);
@@ -547,7 +548,7 @@ void check_flood(usernode user)
 void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *ping_source,
 		 void *accounting_handle)
 {
-  static char tmpbuf[BUFSIZE];
+  static char tmpbuf[BUFSIZE], useraddr[BUFSIZE];
   namelist chains=NULL, tmplist;
   struct in_addr user_address, source_address;
   int type, ifindex;
@@ -559,15 +560,15 @@ void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *
   if (makeaddress(parms->name, &user_address))
     {
       /* Prepare a nice string for logging purposes */
-      strncpy(tmpbuf,inet_ntoa(user_address), BUFSIZE);
-      tmpbuf[BUFSIZE-1]='\0';
-      if (strcmp(parms->name,tmpbuf))
-	sprintf(tmpbuf,"%s/%s",parms->name,inet_ntoa(user_address));
+      strncpy(useraddr,inet_ntoa(user_address), BUFSIZE);
+      useraddr[BUFSIZE-1]='\0';
+      if (strcmp(parms->name,useraddr))
+	sprintf(useraddr,"%s/%s",parms->name,inet_ntoa(user_address));
 
       /* Check if this user is already present */
       if ((thisnode=findUser(*users, &user_address))!=NULL)
 	{
-	  syslog(LOG_NOTICE, "Add: user %s already active",tmpbuf);
+	  syslog(LOG_NOTICE, "Add: user %s already active",useraddr);
 	  check_flood(thisnode);
 	  hlcrypt_Send(csocket,"1", NULL);
 	  hlcrypt_Send(csocket,"Already there", NULL);
@@ -579,7 +580,8 @@ void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *
 	    {
 	      /* Determine the interface index and source address */
 	      if ((ifindex=find_interface(&user_address,
-					  &source_address))>=0)
+					  &source_address,
+					  tmpbuf, sizeof(tmpbuf)))>=0)
 		{
 		  /* Determine the user type */
 		  if ((type=determine_type(&user_address, NULL)) != 
@@ -592,14 +594,14 @@ void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *
 
 		      syslog(LOG_NOTICE, 
 			     "Adding %s, %s, type %s, chains %s",
-			     tmpbuf,
+			     useraddr,
 			     parms->next->name,
 			     (type==USER_TYPE_PING)?"ping":"arpping",
 			     parms->next->next->name);	
 		      /*		      syslog(LOG_NOTICE, "Using %s as source address", inet_ntoa(source_address));*/
 		      /* Add the user to the list */
 		      if (!addUser(users, parms->next->name, NULL, type,
-				      &user_address, ifindex,
+				      &user_address, ifindex, tmpbuf,
 				      &source_address, chains, time(NULL),
 				      accounting_handle))
 			{
@@ -625,7 +627,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *
 		    {
 		      syslog(LOG_NOTICE,
 			     "Add: determine_type failed for user %s",
-			     tmpbuf);
+			     useraddr);
 		      freenamelist(&chains);
 		      hlcrypt_Send(csocket,"1", NULL);
 		      hlcrypt_Send(csocket,"add: failed.", NULL);
@@ -635,7 +637,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *
 		{
 		  syslog(LOG_NOTICE,
 			 "Add: find_interface failed for user %s",
-			 tmpbuf);
+			 useraddr);
 		  freenamelist(&chains);
 		  hlcrypt_Send(csocket,"1", NULL);
 		  hlcrypt_Send(csocket,"add: failed.", NULL);
@@ -643,7 +645,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *
 	    }
 	  else /* splitstring */
 	    {
-	      syslog(LOG_NOTICE, "Add: no chains for user %s",tmpbuf);
+	      syslog(LOG_NOTICE, "Add: no chains for user %s",useraddr);
 	      hlcrypt_Send(csocket,"1", NULL);
 	      hlcrypt_Send(csocket,"add: failed.", NULL);
 	    }

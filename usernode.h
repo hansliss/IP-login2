@@ -31,6 +31,9 @@ typedef struct susernode
   /* The interface index for outgoing traffic for this user */
   int ifindex;
 
+  /* The interface name for that interface */
+  char ifname[32];
+
   /* The source address to use for this user */
   struct in_addr source_address;
 
@@ -78,6 +81,7 @@ typedef struct susernode
   'user_type' (in): The user type - See above
   'address' (in): The IP adress of this user
   'ifindex' (in): The interface index to be used for this user
+  'ifname' (in): The name of that interface
   'source' (in): The source IP address to be used for traffic to this user
   'chains' (in): A list of filter chain names for this user
   'added' (in): The time at which this user was added.
@@ -88,7 +92,7 @@ typedef struct susernode
   is created, the first one in the list will override any others.
   */
 usernode addUser(usernode *l, char *account, char *session_id, int user_type,
-		       struct in_addr *address, int ifindex,
+		       struct in_addr *address, int ifindex, char *ifname,
 		       struct in_addr *source, namelist chains, time_t added,
 		       void *accounting_handle);
 
