@@ -38,7 +38,12 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#ifndef WIN32
 #include "config.h"
+#else
+#define HAVE_STRING_H 1
+#endif
+
 #if HAVE_STRINGS_H==1
 #include <strings.h>
 #endif

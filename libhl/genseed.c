@@ -1,11 +1,21 @@
 #include	<stdio.h>
 #include	<sys/stat.h>
-#include	<unistd.h>
 #include	<fcntl.h>
-#include	<syslog.h>
 #include <time.h>
 
+#ifndef WIN32
+#include	<unistd.h>
+#include	<syslog.h>
 #include "config.h"
+#endif
+
+#ifdef WIN32
+#define HAVE_STRING_H 1
+#define strcasecmp(a,b) _stricmp((a),(b))
+#include <process.h>
+#include <io.h>
+#endif
+
 #if HAVE_STRINGS_H==1
 #include <strings.h>
 #endif
@@ -20,7 +30,11 @@
 */
 
 #ifndef	RANDOM
-#define	RANDOM	"/var/tmp/random"
+#ifdef WIN32
+#define RANDOM "C:/random.bin"
+#else
+#define RANDOM  "/var/tmp/random"
+#endif
 #endif
 
 static	char	* random_file	= RANDOM;
@@ -32,6 +46,11 @@ void	set_random_file(char * r)
 	random_file = the_random_file;
 }
 
+#ifdef WIN32
+void syslog(int s, const char *fmt, ...)
+{
+}
+#endif
 
 char	* genseed(void)
 {

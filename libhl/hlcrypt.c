@@ -1,14 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifndef WIN32
 #include <syslog.h>
 #include <sys/time.h>
-#include <time.h>
-#include <errno.h>
-#include <sys/stat.h>
+#include <sys/types.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 #include <unistd.h>
-
 #include "config.h"
+#include <errno.h>
+#endif
+
+#include <time.h>
+#include <sys/stat.h>
+
 #if HAVE_STRINGS_H==1
 #include <strings.h>
 #endif
@@ -17,8 +23,17 @@
 #endif
 #include "hl.h"
 
+#ifndef WIN32
+int getLastSockErr() { return errno; }
+#define INTERRUPTED EINTR
+#else
+int getLastSockErr() { return WSAGetLastError(); }
+#define INTERRUPTED WSAEINTR
+#endif
+
 #define READ_TIMEOUT 10000
 #define BUFSIZE 8192
+
 
 /* Authentication and encryption data */
 unsigned char local_challenge[CHALLENGE_SIZE];
@@ -30,12 +45,21 @@ unsigned char remote_streamkey[SHA_DIGEST_LENGTH];
 void makerandom(unsigned char *buf, int bufsize)
 {
   int i;
+#ifdef WIN32
+  HCRYPTPROV hCryptProv;
+  srand((unsigned)clock());
+  for( i = 0; i < bufsize;i++ )
+    buf[i]=rand() % 0x100;
+  if (CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL,0))
+    CryptGenRandom(hCryptProv,bufsize,buf);
+#else
   srand((unsigned)time( NULL ));
   for( i = 0; i < bufsize;i++ )
     buf[i]=rand() % 0x100;
+#endif
 }
 
-int readblock(int fd, int timeout, unsigned char *buf, int count)
+int readblock(SOCKET fd, int timeout, unsigned char *buf, int count)
 {
   fd_set fds;
   struct timeval tv;
@@ -50,8 +74,8 @@ int readblock(int fd, int timeout, unsigned char *buf, int count)
       tv.tv_usec=1000 * (timeout%1000);
       if ((n=select(fd+1, &fds, NULL, NULL, &tv)) > 0)
 	{
-	  if ((n=read(fd,&(readbuffer[data_in_buffer]),
-		      BUFSIZE-data_in_buffer))>0)
+	  if ((n=recv(fd,&(readbuffer[data_in_buffer]),
+		      BUFSIZE-data_in_buffer, 0))>0)
 	    {
 	      data_in_buffer+=n;
 	    }
@@ -60,7 +84,7 @@ int readblock(int fd, int timeout, unsigned char *buf, int count)
 	      if (n==0)
 		return 0;
 	      else
-		if (errno!=EINTR)
+		if (getLastSockErr()!=INTERRUPTED)
 		  {
 		    syslog(LOG_ERR,"read(): %m");
 		    return -1;
@@ -143,7 +167,7 @@ char *hlcrypt_SHA1(unsigned char *string,int slen)
 int hlcrypt_MakeToken(char *buf, int bufsize)
 {
   int i;
-  char tmpbuf[CHALLENGE_SIZE], *c;
+  unsigned char tmpbuf[CHALLENGE_SIZE], *c;
   if (bufsize < (SHA_DIGEST_LENGTH*2+1))
     return 0;
   makerandom(tmpbuf,CHALLENGE_SIZE);
@@ -178,12 +202,12 @@ void makekey(unsigned char *buf, int bufsize,
 
 /* Encrypt and send a string as a series of packets.
    Keep the terminating NUL */
-int hlcrypt_Send(int s, unsigned char *string, HLCRYPT_HANDLE h)
+int hlcrypt_Send(SOCKET s, unsigned char *string, HLCRYPT_HANDLE h)
 {
   int i, j, n, m;
-  char tmpbuf[BUFSIZE];
-  char packet[PSIZE];
-  char *lc, *lk;
+  unsigned char tmpbuf[BUFSIZE];
+  unsigned char packet[PSIZE];
+  unsigned char *lc, *lk;
   n=strlen(string)+1;
 
   if (h)
@@ -215,7 +239,7 @@ int hlcrypt_Send(int s, unsigned char *string, HLCRYPT_HANDLE h)
 	packet[j]^=lk[j];
 
       /* ...and write it to the socket */
-      write(s,packet,PSIZE);
+      send(s, packet, PSIZE, 0);
 
       /* Save the new key */
       memcpy(lk, tmpbuf, KEYSIZE);
@@ -224,12 +248,12 @@ int hlcrypt_Send(int s, unsigned char *string, HLCRYPT_HANDLE h)
 }
 
 /* Get a complete NUL-terminated string withing a specified timeout */
-int hlcrypt_Receive(int s, unsigned char *string, int maxlen, int timeout, HLCRYPT_HANDLE h)
+int hlcrypt_Receive(SOCKET s, unsigned char *string, int maxlen, int timeout, HLCRYPT_HANDLE h)
 {
   int ready=0;
   int i,j,n;
-  char packet[PSIZE];
-  char *rc, *rk;
+  unsigned char packet[PSIZE];
+  unsigned char *rc, *rk;
 
   if (h)
     {
@@ -279,7 +303,7 @@ int hlcrypt_Receive(int s, unsigned char *string, int maxlen, int timeout, HLCRY
 }
 
 
-int hlcrypt_AuthClient(int csocket, unsigned char *local_key,
+int hlcrypt_AuthClient(SOCKET csocket, unsigned char *local_key,
 		       unsigned char *remote_key, HLCRYPT_HANDLE *h)
 {
   char tmpbuf[BUFSIZE], tmpbuf2[SHA_DIGEST_LENGTH];
@@ -304,7 +328,7 @@ int hlcrypt_AuthClient(int csocket, unsigned char *local_key,
   makerandom(lc, CHALLENGE_SIZE);
 
   /* Write the server challenge to the socket */
-  write(csocket, lc, CHALLENGE_SIZE);
+  send(csocket, lc, CHALLENGE_SIZE, 0);
 
   if (readblock(csocket, READ_TIMEOUT, tmpbuf2, SHA_DIGEST_LENGTH) <= 0)
     {
@@ -338,7 +362,7 @@ int hlcrypt_AuthClient(int csocket, unsigned char *local_key,
 	  rc, CHALLENGE_SIZE,
 	  local_key, strlen(local_key));
 
-  write(csocket, tmpbuf, SHA_DIGEST_LENGTH);
+  send(csocket, tmpbuf, SHA_DIGEST_LENGTH, 0);
 
   makekey(rk, KEYSIZE,
 	  rc, CHALLENGE_SIZE,
@@ -354,7 +378,7 @@ int hlcrypt_AuthClient(int csocket, unsigned char *local_key,
     return 0;
 }
 
-int hlcrypt_AuthServer(int csocket, unsigned char *remote_key,
+int hlcrypt_AuthServer(SOCKET csocket, unsigned char *remote_key,
 		       unsigned char *local_key, HLCRYPT_HANDLE *h)
 {
   char tmpbuf[BUFSIZE], tmpbuf2[SHA_DIGEST_LENGTH];
@@ -388,10 +412,10 @@ int hlcrypt_AuthServer(int csocket, unsigned char *remote_key,
   /* Calculate and send the response */
   makekey(tmpbuf, sizeof(tmpbuf), rc,
 	  CHALLENGE_SIZE, local_key, strlen(local_key));
-  write(csocket, tmpbuf, SHA_DIGEST_LENGTH);
+  send(csocket, tmpbuf, SHA_DIGEST_LENGTH,0);
 
   /* Write the server challenge to the socket */
-  write(csocket, lc, CHALLENGE_SIZE);
+  send(csocket, lc, CHALLENGE_SIZE, 0);
 
   if (readblock(csocket, READ_TIMEOUT, tmpbuf2, SHA_DIGEST_LENGTH) <= 0)
     {

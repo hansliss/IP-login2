@@ -1,7 +1,17 @@
 #include <stdio.h>
 #include <time.h>
+#include <sys/types.h>
+
+#ifdef WIN32
+#include <winsock2.h>
+#define strcasecmp(a,b) _stricmp((a),(b))
+#define strncasecmp(a,b,c) _strnicmp((a),(b),(c))
+#else
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include "config.h"
+#endif
+
 #if HAVE_STRINGS_H==1
 #include <strings.h>
 #endif
@@ -43,7 +53,7 @@ int uu_aes_encrypt(unsigned char *ctext, int ctextsize, unsigned char *key, int 
     return -2;
 
   /* Try to make sure that there is enough space in the result buffer */
-  if (outbufsize < (4*(IVLEN +
+  if (outbufsize < (int)(4*(IVLEN +
 		      ctextsize +
 		      BLOCKSIZE - (ctextsize % BLOCKSIZE))/3 +
 		    strlen(TAG) + 1))
@@ -135,7 +145,7 @@ int uu_aes_decrypt(unsigned char *ctext, int ctextsize, unsigned char *key, int 
   l=ctextsize;
   
   /* Try to make sure that the result buffer is large enough */
-  if (outbufsize < (3*(ctextsize - strlen(TAG))/4 - IVLEN + 1))
+  if (outbufsize < (int)(3*(ctextsize - strlen(TAG))/4 - IVLEN + 1))
     return -3;
 
   if (ctextsize > BUFSIZE)

@@ -1,7 +1,10 @@
 #include <stdio.h>
 
+#ifndef WIN32
 #include "config.h"
-#include "divlib.h"
+#endif
+
+#include "hl.h"
 
 int printable(unsigned char c)
 {

@@ -1,15 +1,21 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#ifdef WIN32
+#define strcasecmp(a,b) _stricmp((a),(b))
+#define strncasecmp(a,b,c) _strnicmp((a),(b), (c))
+#define HAVE_STRING_H 1
+#else
 #include "config.h"
+#endif
+
 #if HAVE_STRINGS_H==1
 #include <strings.h>
 #endif
 #if HAVE_STRING_H==1
 #include <string.h>
 #endif
-#include "divlib.h"
-#include "varlist.h"
+#include "hl.h"
 
 /* Add a name:value pair to the end of a 'varlist'.
    Cease to function on allocation errors */

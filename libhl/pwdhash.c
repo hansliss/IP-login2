@@ -1,9 +1,22 @@
 #include <stdlib.h>
+
+#ifndef WIN32
+#include "config.h"
+#endif
+
+#if HAVE_CRYPT_H==1
 #include <crypt.h>
+#endif
+
+#ifndef WIN32
 #define __USE_XOPEN
 #include <unistd.h>
+#else
+#define HAVE_STRING_H 1
+#define strcasecmp(a,b) _stricmp((a),(b))
+#endif
+
 #include "hl.h"
-#include "config.h"
 #if HAVE_STRINGS_H==1
 #include <strings.h>
 #endif

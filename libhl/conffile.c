@@ -2,19 +2,24 @@
 #include <stdlib.h>
 #include <time.h>
 #include <ctype.h>
-#include <unistd.h>
 #include <ctype.h>
 
+#ifdef WIN32
+#define HAVE_STRING_H 1
+#define strcasecmp(a,b) _stricmp((a),(b))
+#include <process.h>
+#else
+#include <unistd.h>
 #include "config.h"
+#endif
+
 #if HAVE_STRINGS_H==1
 #include <strings.h>
 #endif
 #if HAVE_STRING_H==1
 #include <string.h>
 #endif
-#include "varlist.h"
-#include "divlib.h"
-#include "conffile.h"
+#include "hl.h"
 
 #define CONFFILE_BUFSIZE 1024
 
@@ -23,7 +28,9 @@
 #define LINE_SKIP 1
 #define LINE_EMPTY 2
 
+#ifndef min
 #define min(a,b) (((a)<(b))?(a):(b))
+#endif
 
 /***************************************
 
@@ -69,7 +76,7 @@ int getnextline(char *buffer, int buffersize, FILE *file, char *orgbuffer, int o
     return LINE_EOF;
   if (orgbuffer)
     {
-      if (orgbuffersize < strlen(buffer)+1)
+      if (orgbuffersize < (int)strlen(buffer)+1)
 	return LINE_SKIP;
       else
 	strcpy(orgbuffer, buffer);

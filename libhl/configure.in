@@ -38,10 +38,13 @@ AC_CHECK_HEADERS(\
 	sys/time.h\
 	syslog.h\
 	time.h\
-	unistd.h, ,AC_MSG_ERROR([Missing header file]))
+	unistd.h)
+
+AC_CHECK_HEADERS(crypt.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
+AC_CHECK_TYPE(int_least16_t,short)
 
 dnl Checks for library functions.
 AC_TYPE_SIGNAL

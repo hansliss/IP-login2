@@ -1,6 +1,11 @@
 #include <ctype.h>
 
+#ifndef WIN32
 #include "config.h"
+#else
+#define HAVE_STRING_H 1
+#endif
+
 #if HAVE_STRINGS_H==1
 #include <strings.h>
 #endif
@@ -16,7 +21,7 @@ int isjunk(char c)
 
 void dejunkifyforlog(char *s)
 {
-  int i;
+  unsigned int i;
   if (strlen(s)>32)
     s[32]='\0';
   for (i=0; i<strlen(s); i++)

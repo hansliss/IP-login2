@@ -1,8 +1,27 @@
 #ifndef LIBDIV_H
 #define LIBDIV_H
 
+#ifdef WIN32
+extern void syslog(int s, const char *fmt, ...);
+#define LOG_ERR 0
+#define LOG_DEBUG 1
+#define LOG_NOTICE 2
+#define LOG_INFO 3
+#define _WIN32_WINNT 0x0500
+#include <windows.h>
+#include <winsock2.h>
+#include <io.h>
+#else
+#include <errno.h>
+#include <sys/types.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
+#define SOCKET int
+#endif
+
+
 #include <stdio.h>
+
 
 void hexdump(FILE *fd, unsigned char *buf, int n);
 
@@ -334,7 +353,10 @@ void MD5Final PROTO_LIST ((unsigned char [16], MD5_CTX *));
 #ifndef _SHA1_H_
 #define _SHA1_H_
 
+#ifndef WIN32
 #include <inttypes.h>
+#endif
+
 /*
  * If you do not have the ISO standard stdint.h header file, then you
  * must typdef the following:
@@ -356,6 +378,12 @@ enum
 };
 #endif
 #define SHA1HashSize 20
+
+#ifdef WIN32
+typedef unsigned long uint32_t;
+typedef short int_least16_t;
+typedef unsigned char uint8_t;
+#endif
 
 /*
  *  This structure will hold context information for the SHA-1
@@ -421,7 +449,7 @@ typedef struct hlcrypt_handle_s
 /*
   Authentication function for the client side.
   */
-int hlcrypt_AuthClient(int csocket,
+int hlcrypt_AuthClient(SOCKET csocket,
 		       unsigned char *clientkey,
 		       unsigned char *serverkey,
 		       HLCRYPT_HANDLE *h);
@@ -429,7 +457,7 @@ int hlcrypt_AuthClient(int csocket,
 /*
   Authentication function for the server side.
   */
-int hlcrypt_AuthServer(int csocket,
+int hlcrypt_AuthServer(SOCKET csocket,
 		       unsigned char *clientkey,
 		       unsigned char *serverkey,
 		       HLCRYPT_HANDLE *h);
@@ -437,12 +465,12 @@ int hlcrypt_AuthServer(int csocket,
 /*
   Send a string encrypted to the peer
   */
-int hlcrypt_Send(int s, unsigned char *string, HLCRYPT_HANDLE h);
+int hlcrypt_Send(SOCKET s, unsigned char *string, HLCRYPT_HANDLE h);
 
 /*
   Receive a string from the peer
   */
-int hlcrypt_Receive(int s, unsigned char *string, int maxlen, int timeout, HLCRYPT_HANDLE h);
+int hlcrypt_Receive(SOCKET s, unsigned char *string, int maxlen, int timeout, HLCRYPT_HANDLE h);
 
 /*
   Create a "token" string
