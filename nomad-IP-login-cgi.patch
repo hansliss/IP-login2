@@ -1,0 +1,71 @@
+diff -Naur IP-login-010914/IP-login-cgi.c IP-login-030313/IP-login-cgi.c
+--- IP-login-010914/IP-login-cgi.c	Fri Sep 14 14:24:50 2001
++++ IP-login-030313/IP-login-cgi.c	Thu Mar 13 13:25:44 2003
+@@ -21,7 +21,11 @@
+  * 02111-1307, USA.  
+  */
+ 
+-#define VERSION "Version 0.015 -- 010914"
++#define VERSION "Version 0.016 -- 030313"
++
++#define IPLOGIN2_CONFFILE "/opt/iplogin2/conf"
++#define IPLOGIN2_CLIENT "localhost"
++#define IPLOGIN2_CHAINS "users,nat:users"
+ 
+ /*
+ 
+@@ -47,6 +51,7 @@
+ #include <syslog.h>
+ #include <sys/types.h>
+ #include <sys/wait.h>
++#include <iplogin2.h>
+ 
+ #include "IP-login-pam.h"
+ 
+@@ -441,6 +446,10 @@
+ int do_IP_Login(void)
+ {
+   int res;
++#if 1
++  res = iplogin2_login(IPLOGIN2_CONFFILE, IPLOGIN2_CLIENT, src, user, IPLOGIN2_CHAINS);
++#else
+   res = wait_cmd("/sbin/IP-login -u %U %I");
++#endif
+   return res;
+ }
+diff -Naur IP-login-010914/Makefile IP-login-030313/Makefile
+--- IP-login-010914/Makefile	Fri Apr 27 11:11:35 2001
++++ IP-login-030313/Makefile	Thu Mar 13 13:13:50 2003
+@@ -7,7 +7,7 @@
+ # RO  010419 Version 0.003
+ 
+ #options if you have a bind>=4.9.4 libresolv (or, maybe, glibc)
+-LDLIBS=-lresolv
++LDLIBS=-lresolv -L/opt/iplogin2/lib -liplogin2 -lhl -lcrypto
+ ADDLIB=
+ DEFINES=
+ 
+@@ -17,7 +17,7 @@
+ DOCUMENT_ROOT=/usr/local/www/htdocs
+ 
+ CC=gcc
+-CFLAGS=-O2 -Wall -g  $(DEFINES) 
++CFLAGS=-O2 -Wall -g  -I/opt/iplogin2/include $(DEFINES) 
+ 
+ # To use PAM
+ #CFLAGS += -DUSE_PAM
+@@ -35,7 +35,7 @@
+ 	$(CC)  -o IP-login $(IPLOGINSRC) $(LDLIBS)
+ 
+ IP-login-cgi: IP-login-cgi.o conf.o IP-login-pam.o
+-	$(CC)  -o IP-login-cgi $(LDLIBS) IP-login-cgi.o conf.o IP-login-pam.o
++	$(CC)  -o IP-login-cgi IP-login-cgi.o conf.o IP-login-pam.o $(LDLIBS) 
+ 
+ clean:
+ 	rm -f *.o $(TARGETS)
+diff -Naur IP-login-010914/VERSION IP-login-030313/VERSION
+--- IP-login-010914/VERSION	Thu Apr 19 14:05:39 2001
++++ IP-login-030313/VERSION	Thu Mar 13 13:25:33 2003
+@@ -1 +1 @@
+-0.003
++0.016
