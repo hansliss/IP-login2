@@ -35,8 +35,6 @@
 #define LOOP_SLEEP 200
 #define MISSSTATPERIOD 1
 
-void *accounting_handle=NULL;
-
 /*
   Check and authenticate a new incoming command server connection
   before handing it over to docommand().
@@ -49,9 +47,7 @@ void *accounting_handle=NULL;
   'users' (in/out): The list of active users
   */
 
-void handle_connection(char *conffile, char *progname, int csocket,
-		       char *servername, usernode *users, struct sockaddr_in *ping_source,
-		       void *accounting_handle)
+void handle_connection(struct config *conf, int csocket, usernode *users)
 {
   struct sockaddr_in client_sa;
   char client_ip[16], clientname[1024];
@@ -61,7 +57,7 @@ void handle_connection(char *conffile, char *progname, int csocket,
   struct request_info req;
 
   /* Check client with libwrap */
-  request_init(&req, RQ_DAEMON, progname, RQ_FILE, csocket, NULL);
+  request_init(&req, RQ_DAEMON, conf->progname, RQ_FILE, csocket, NULL);
   fromhost(&req);
   if (!hosts_access(&req))
     syslog(deny_severity, "connection from %s refused", eval_client(&req));
@@ -80,7 +76,7 @@ void handle_connection(char *conffile, char *progname, int csocket,
 	  client_ip[sizeof(client_ip)-1]='\0';
 
 	  /* Find out who this client is */
-	  if (!conf_matchlist(conffile,"client", "ip", client_ip,
+	  if (!conf_matchlist(conf->conffile,"client", "ip", client_ip,
 			      &possible_clients))
 	    syslog(LOG_ERR,
 		   "%s: no matching client defined in configuration file",
@@ -93,14 +89,14 @@ void handle_connection(char *conffile, char *progname, int csocket,
 	      clientname[sizeof(clientname)-1]='\0';
 		    
 	      /* Get the server key from the conffile */
-	      if (!conf_getvar(conffile,"server",servername,"key",
+	      if (!conf_getvar(conf->conffile,"server",conf->servername,"key",
 			       local_key,sizeof(local_key)))
 		syslog(LOG_ERR,
 		       "No server key is defined for %s",
-		       servername);
+		       conf->servername);
 	      else /* server key */
 		{
-		  if (!conf_getvar(conffile,"client",clientname,"key",
+		  if (!conf_getvar(conf->conffile,"client",clientname,"key",
 				   remote_key,sizeof(remote_key)))
 		    syslog(LOG_ERR,
 			   "No client key is defined for %s",clientname);
@@ -111,7 +107,7 @@ void handle_connection(char *conffile, char *progname, int csocket,
 			{
 			  /* Receive and handle a command now, the client
 			     is OK */
-			  docommand(csocket, clientname, conffile, users, ping_source, accounting_handle);
+			  docommand(conf, csocket, clientname, users);
 			}
 		    }
 		}
@@ -256,17 +252,19 @@ void receive_replies(socketnode allsockets, usernode users, int ident, int timeo
 
 /* Ugly: If parameters are non-NULL, just save them to our local vars,
    otherwise save the state to the file, if a filename is available */
-void savestate_helper(int do_quit, char *n, usernode *s, socketnode *a)
+void savestate_helper(int do_quit, char *n, usernode *s, socketnode *a, void *h)
 {
   static usernode *users=NULL;
   static char *filename=NULL;
   static socketnode *allsockets=NULL;
+  static void *accounting_handle=NULL;
   socketnode tmpsock;
   if (n && s && a)
     {
       users=s;
       filename=n;
       allsockets=a;
+      accounting_handle=h;
     }
   else
     {
@@ -297,7 +295,7 @@ void savestate(int s)
   if ((s==SIGUSR2) || (s==SIGTERM))
     do_quit=1;
 
-  savestate_helper(do_quit, NULL, NULL, NULL);
+  savestate_helper(do_quit, NULL, NULL, NULL, NULL);
   signal(SIGUSR1, savestate);
 }
 
@@ -333,10 +331,8 @@ int mainloop(struct config *conf, int command_server_socket)
   FILE *statfile=fopen("iplogin.statistics","w");
 #endif
 
-  /* Save accounting handle for signal handlers */
-  accounting_handle=conf->accounting_handle;
-
   mymalloc_pushcontext("mainloop()");
+  fchain_init();
   tmplist=NULL;
   if (conf_getvar(conf->conffile,"server",conf->servername,"flush_on_start",tmpbuf,sizeof(tmpbuf)) &&
       splitstring(tmpbuf,',',&tmplist)>0)
@@ -351,7 +347,6 @@ int mainloop(struct config *conf, int command_server_socket)
     }
 
   ident=getpid()&0xFFFF;
-  fchain_init();
 
   /* Don't stop on SIGPIPE */
   signal(SIGPIPE, SIG_IGN);
@@ -360,8 +355,8 @@ int mainloop(struct config *conf, int command_server_socket)
   if (strlen(conf->loadfile)>0)
     do_load_state(-1, conf->loadfile, &users, &(conf->defaultping.ping_source), conf->accounting_handle);
 
-  /* Prepare for saving functionality */
-  savestate_helper(0, conf->loadfile, &users, &allsockets);
+  /* Prepare for saving functionality - just save the filename */
+  savestate_helper(0, conf->loadfile, &users, &allsockets, conf->accounting_handle);
   signal(SIGUSR1, savestate);
   signal(SIGUSR2, savestate);
   signal(SIGTERM, savestate);
@@ -391,8 +386,7 @@ int mainloop(struct config *conf, int command_server_socket)
 		  if ((csocket=accept(command_server_socket,
 				      (struct sockaddr *)&remote_addr,
 				      &addr_len))!=-1)
-		    handle_connection(conf->conffile, conf->progname, csocket,
-				      conf->servername, &users, &(conf->defaultping.ping_source), conf->accounting_handle);
+		    handle_connection(conf, csocket, &users);
 		  else if (errno != EINTR)
 		    syslog(LOG_ERR,"accept(): %m");
 		}
@@ -471,8 +465,8 @@ int mainloop(struct config *conf, int command_server_socket)
 			 tmpuser->hits
 			 );
 
-		  if (tmpuser->block_installed)
-		    fchain_delblock(tmpuser->address, STAT_BLOCKCHAIN);
+		  if (strlen(conf->stat_blockchain) && tmpuser->block_installed)
+		    fchain_delrule(tmpuser->address, conf->stat_blockchain);
 
 		  /* ..and remove the user from our list */
 		  delUser(&users,&tmpuser->address, conf->accounting_handle);
@@ -483,9 +477,10 @@ int mainloop(struct config *conf, int command_server_socket)
 		}
 	      else /* if (..missed..) */
 		{
-		  if ((tmpuser->block_installed) && ((now - tmpuser->block_installed) > STAT_BLOCKTIME))
+		  if (strlen(conf->stat_blockchain) && (tmpuser->block_installed) &&
+		      ((now - tmpuser->block_installed) > conf->stat_blocktime))
 		    {
-		      fchain_delblock(tmpuser->address, STAT_BLOCKCHAIN);
+		      fchain_delrule(tmpuser->address, conf->stat_blockchain);
 		      tmpuser->block_installed=0;
 		      tmpuser->statmit_count=0;
 		    }
@@ -503,9 +498,9 @@ int mainloop(struct config *conf, int command_server_socket)
 	  lastgc=now;
 	} /* while (...GC_PERIOD...) */
 
-      if ((now - stat_gc_last) > STAT_BLOCKGC)
+      if (strlen(conf->stat_blockchain) && ((now - stat_gc_last) > conf->stat_blockgc))
 	{
-	  fchain_flush(STAT_BLOCKCHAIN);
+	  fchain_flush(conf->stat_blockchain);
 	  stat_gc_last=now;
 	}
 
@@ -514,6 +509,9 @@ int mainloop(struct config *conf, int command_server_socket)
 	  syslog(LOG_DEBUG, "Missed %d replies in the last %d minute%s", missstat_count, MISSSTATPERIOD, (MISSSTATPERIOD>1)?"s":"");
 	  missstat_count=0;
 	  missstat_last=now;
+
+
+
 	}
       trace_msg("Sending requests");
       

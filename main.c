@@ -21,10 +21,11 @@
 char *versionstring_parts[]=
 {
   "iplogin2",
-  "2.2.3",
-  "[ping distribution]",
-  "[user blocking]",
-  "[interface specific config]",
+  "2.2.4",
+  "[command dispatcher]",
+  "[code cleanup]",
+  "[configurable blocking]",
+  "[rich chain specs]",
   __DATE__,
   __TIME__
 };
@@ -278,6 +279,32 @@ int initialize(struct config *conf)
   if (conf_getvar(conf->conffile,"server",conf->servername,"accounting_lib",tmpbuf,BUFSIZE))
     if ((conf->accounting_handle=acct_init(tmpbuf, tmpbuf2))==NULL)
       syslog(LOG_ERR, "acct_init(%s, %s): %s", tmpbuf, tmpbuf2, acct_last_error());
+
+  if (!conf_getvar(conf->conffile,"server",conf->servername,"stat_timelimit",tmpbuf2,BUFSIZE))
+    sscanf(tmpbuf2, "%i", &(conf->stat_timelimit));
+  else
+    conf->stat_timelimit=60;
+
+  if (!conf_getvar(conf->conffile,"server",conf->servername,"stat_countlimit",tmpbuf2,BUFSIZE))
+    sscanf(tmpbuf2, "%i", &(conf->stat_countlimit));
+  else
+    conf->stat_countlimit=3;
+
+  if (!conf_getvar(conf->conffile,"server",conf->servername,"stat_timelimit",tmpbuf2,BUFSIZE))
+    strncpy(conf->stat_blockchain, tmpbuf2, sizeof(conf->stat_blockchain));
+  else
+    conf->stat_blockchain[0]='\0';
+
+  if (!conf_getvar(conf->conffile,"server",conf->servername,"stat_blocktime",tmpbuf2,BUFSIZE))
+    sscanf(tmpbuf2, "%i", &(conf->stat_blocktime));
+  else
+    conf->stat_blocktime=900;
+
+  if (!conf_getvar(conf->conffile,"server",conf->servername,"stat_blockgc",tmpbuf2,BUFSIZE))
+    sscanf(tmpbuf2, "%i", &(conf->stat_blockgc));
+  else
+    conf->stat_blockgc=3600;
+
   return 1;
 }
 

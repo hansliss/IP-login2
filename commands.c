@@ -27,8 +27,94 @@
   strings sent, sent as a string.
   */
 
-/* Helpers */
+typedef void (*command_handler)(int csocket, namelist parms, usernode *users, struct config *conf);
+/*** Protos ***/
+void add_user(int csocket, namelist parms, usernode *users, struct config *conf);
+void send_stat(int csocket, namelist parms, usernode *users, struct config *conf);
+void do_check(int csocket, namelist parms, usernode *users, struct config *conf);
+void del_user(int csocket, namelist parms, usernode *users, struct config *conf);
+void reload_chains(int csocket, namelist parms, usernode *users, struct config *conf);
+void printhelp(int csocket, namelist parms, usernode *users, struct config *conf);
+void dump_state(int csocket, namelist parms, usernode *users, struct config *conf);
+void reset(int csocket, namelist parms, usernode *users, struct config *conf);
+void quit(int csocket, namelist parms, usernode *users, struct config *conf);
+void save_state(int csocket, namelist parms, usernode *users, struct config *conf);
+void load_state(int csocket, namelist parms, usernode *users, struct config *conf);
+void return_count(int csocket, namelist parms, usernode *users, struct config *conf);
+void return_rss(int csocket, namelist parms, usernode *users, struct config *conf);
+void return_vsize(int csocket, namelist parms, usernode *users, struct config *conf);
+void do_memdebug(int csocket, namelist parms, usernode *users, struct config *conf);
+void do_addblock(int csocket, namelist parms, usernode *users, struct config *conf);
+void do_delblock(int csocket, namelist parms, usernode *users, struct config *conf);
 
+#define COMMAND_ADD 1
+#define COMMAND_STAT 2
+#define COMMAND_DEL 3
+#define COMMAND_RELOAD 4
+#define COMMAND_HELP 5
+#define COMMAND_DUMP 6
+#define COMMAND_RESET 7
+#define COMMAND_QUIT 8
+#define COMMAND_SAVESTATE 9
+#define COMMAND_LOADSTATE 10
+#define COMMAND_COUNT 11
+#define COMMAND_RSS 12
+#define COMMAND_VSIZE 13
+#define COMMAND_MEMDEBUG 14
+#define COMMAND_ADDBLOCK 15
+#define COMMAND_DELBLOCK 16
+#define COMMAND_CHECK 17
+#define COMMAND_UNKNOWN -1
+#define COMMAND_ARGS -2
+#define COMMAND_PERMS -3
+
+struct commandtabnode {
+  char *name;
+  int token;
+  int args;
+  command_handler fcall;
+  char *usage;
+} commandtab[]=
+  {
+    {"add",	COMMAND_ADD,	3, add_user,
+     "Add a new address:\tadd <address> <account> <list of chains>"},
+    {"stat",	COMMAND_STAT,	1, send_stat,
+     "Get stats:\t\tstat <address>"},
+    {"check",	COMMAND_CHECK,	1, do_check,
+     "Check:\t\t\tcheck <address>"},
+    {"del",	COMMAND_DEL,	1, del_user,
+     "Delete an address:\tdel <address>"},
+    {"reload",	COMMAND_RELOAD,	0, reload_chains,
+     "Reload chains:\t\treload"},
+    {"help",	COMMAND_HELP,	0, printhelp,
+     "Get help:\t\thelp"},
+    {"dump",	COMMAND_DUMP,	0, dump_state,
+     "Dump all info:\t\tdump"},
+    {"reset",	COMMAND_RESET,	0, reset,
+     "Reset state:\t\treset"},
+    {"quit",	COMMAND_QUIT,	0, quit,
+     "Quit:\t\t\tquit"},
+    {"savestate",COMMAND_SAVESTATE,1, save_state,
+     "Save state to file:\tsavestate <file name>"},
+    {"loadstate",COMMAND_LOADSTATE,1, load_state,
+     "Load state from file:\tloadstate <file name>"},
+    {"count",COMMAND_COUNT,0, return_count,
+     "Count active entries:\tcount"},
+    {"rss",COMMAND_RSS,0, return_rss,
+     "Get RSS:\t\trss"},
+    {"vsize",COMMAND_VSIZE,0, return_vsize,
+     "Get vsize:\t\tvsize"},
+    {"memdebug",COMMAND_MEMDEBUG,1, do_memdebug,
+     "Mem usage debugging:\tmemdebug {0,1}"},
+    {"addblock",COMMAND_ADDBLOCK,2, do_addblock,
+     "Add tcp block:\taddblock <address> <list of chains>"},
+    {"delblock",COMMAND_DELBLOCK,2, do_delblock,
+     "Delete tcp block:\tdelblock <address> <list of chains>"}
+  };
+
+#define NCOMMANDS (sizeof(commandtab)/sizeof(struct commandtabnode))
+
+/* Helpers */
 
 /*
   Reset the state to basic, removing all chains and emptying the user list
@@ -358,148 +444,44 @@ void send_single_stat(int csocket, usernode thisnode)
   hlcrypt_Send(csocket, tmpbuf, NULL);
 }
 
-
-/*
-  Command "tokenizer" and parameter count checker.
-
-  Returns one of the following:
-  */
-#define COMMAND_ADD 1
-#define COMMAND_STAT 2
-#define COMMAND_DEL 3
-#define COMMAND_RELOAD 4
-#define COMMAND_HELP 5
-#define COMMAND_DUMP 6
-#define COMMAND_RESET 7
-#define COMMAND_QUIT 8
-#define COMMAND_SAVESTATE 9
-#define COMMAND_LOADSTATE 10
-#define COMMAND_COUNT 11
-#define COMMAND_RSS 12
-#define COMMAND_VSIZE 13
-#define COMMAND_MEMDEBUG 14
-#define COMMAND_ADDBLOCK 15
-#define COMMAND_DELBLOCK 16
-#define COMMAND_CHECK 17
-#define COMMAND_UNKNOWN -1
-#define COMMAND_ARGS -2
-#define COMMAND_PERMS -3
-
-struct commandtabnode {
-  char *name;
-  int token;
-  int args;
-  char *usage;
-} commandtab[]=
-  {
-    {"add",	COMMAND_ADD,	3,
-     "Add a new address:\tadd <address> <account> <list of chains>"},
-    {"stat",	COMMAND_STAT,	1,
-     "Get stats:\t\tstat <address>"},
-    {"check",	COMMAND_CHECK,	1,
-     "Check:\t\t\tcheck <address>"},
-    {"del",	COMMAND_DEL,	1,
-     "Delete an address:\tdel <address>"},
-    {"reload",	COMMAND_RELOAD,	0,
-     "Reload chains:\t\treload"},
-    {"help",	COMMAND_HELP,	0,
-     "Get help:\t\thelp"},
-    {"dump",	COMMAND_DUMP,	0,
-     "Dump all info:\t\tdump"},
-    {"reset",	COMMAND_RESET,	0,
-     "Reset state:\t\treset"},
-    {"quit",	COMMAND_QUIT,	0,
-     "Quit:\t\t\tquit"},
-    {"savestate",COMMAND_SAVESTATE,1,
-     "Save state to file:\tsavestate <file name>"},
-    {"loadstate",COMMAND_LOADSTATE,1,
-     "Load state from file:\tloadstate <file name>"},
-    {"count",COMMAND_COUNT,0,
-     "Count active entries:\tcount"},
-    {"rss",COMMAND_RSS,0,
-     "Get RSS:\t\trss"},
-    {"vsize",COMMAND_VSIZE,0,
-     "Get vsize:\t\tvsize"},
-    {"memdebug",COMMAND_MEMDEBUG,1,
-     "Mem usage debugging:\tmemdebug {0,1}"},
-    {"addblock",COMMAND_ADDBLOCK,2,
-     "Add tcp block:\taddblock <address> <list of chains>"},
-    {"delblock",COMMAND_DELBLOCK,2,
-     "Delete tcp block:\tdelblock <address> <list of chains>"}
-  };
-
-#define NCOMMANDS (sizeof(commandtab)/sizeof(struct commandtabnode))
-
-/*
-  Note: response will contain a 'usage' string if the parameter count is
-  incorrect.
-  Permissions are checked against the "perms" attribute for this client in
-  the configuration file. If the attribute is missing or if it contains "any",
-  the command is accepted. Otherwise, the command must be present in the
-  comma-separated list of commands in "perms".
- */
-int check_command(char *cmd, char *clientname, char *conffile,
-		  namelist *parms, char *command, int size_command, char **response)
+void check_flood(usernode user, struct config *conf)
 {
-  int args, i;
-  namelist tmplist;
-  static char tmpbuf[BUFSIZE];
-  int ret=COMMAND_UNKNOWN;
-  if ((args=splitstring(cmd,' ', parms))<=0)
-    return COMMAND_UNKNOWN;
-  /* Skip the command itself and count only parameters */
-  args--;
-
-  /* Copy the command name from the head of the list and drop it */
-  strncpy(command, (*parms)->name, size_command);
-  command[size_command-1]='\0';
-  tmplist=(*parms);
-  (*parms)=(*parms)->next;
-  tmplist->next=NULL;
-  freenamelist(&tmplist);
-  (*response)=NULL;
-  for (i=0; i<NCOMMANDS; i++)
+  time_t now;
+  if (!strlen(conf->stat_blockchain))
+    return;
+  time(&now);
+  if ((now - user->last_stat) < conf->stat_timelimit)
     {
-      if (!strcasecmp(command, commandtab[i].name))
+      user->statmit_count++;
+      if ((user->statmit_count >= conf->stat_countlimit) &&
+	  (user->block_installed==0))
 	{
-	  if (args==commandtab[i].args)
-	    ret=commandtab[i].token;
-	  else
-	    {
-	      (*response)=commandtab[i].usage;
-	      freenamelist(parms);
-	      return COMMAND_ARGS;
-	    }
+	  fchain_addrule(user->address, conf->stat_blockchain);
+	  user->block_installed=now;
+	  user->statmit_count=0;
 	}
     }
-  /* If command is known and the number of arguments correct,
-     check permissions */
-  if ((ret!=COMMAND_UNKNOWN) &&
-      conf_getvar(conffile, "client", clientname, "perms", tmpbuf,
-		  sizeof(tmpbuf)))
+  else
     {
-      tmplist=NULL;
-      if (!splitstring(tmpbuf,',',&tmplist) ||
-	  !(findname(tmplist, "any") ||
-	    findname(tmplist, command)))
+      if (user->block_installed)
 	{
-	  freenamelist(&tmplist);
-	  freenamelist(parms);
-	  return COMMAND_PERMS;
+	  fchain_delrule(user->address, conf->stat_blockchain);
+	  user->block_installed=0;
+	  user->statmit_count=0;
 	}
-      else
-	freenamelist(&tmplist);
     }
-    
-  return ret;
+  user->last_stat=now;
 }
+
+
+/********************** COMMAND EXECUTORS ***********************/
 
 /*
   Command: HELP
 
   Print usage text
   */
-void printhelp(int csocket)
+void printhelp(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   char x[32];
   int i;
@@ -511,33 +493,6 @@ void printhelp(int csocket)
     hlcrypt_Send(csocket, commandtab[i].usage, NULL);
 }
 
-void check_flood(usernode user)
-{
-  time_t now;
-  time(&now);
-  if ((now - user->last_stat) < STAT_TIMELIMIT)
-    {
-      user->statmit_count++;
-      if ((user->statmit_count >= STAT_COUNTLIMIT) &&
-	  (user->block_installed==0))
-	{
-	  fchain_addblock(user->address, STAT_BLOCKCHAIN);
-	  user->block_installed=now;
-	  user->statmit_count=0;
-	}
-    }
-  else
-    {
-      if (user->block_installed)
-	{
-	  fchain_delblock(user->address, STAT_BLOCKCHAIN);
-	  user->block_installed=0;
-	  user->statmit_count=0;
-	}
-    }
-  user->last_stat=now;
-}
-
 /*
   Command: ADD
 
@@ -545,8 +500,7 @@ void check_flood(usernode user)
   the interface index and 'user' type etc.
   This command accepts hostnames or IP adresses.
  */
-void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *ping_source,
-		 void *accounting_handle)
+void add_user(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   static char tmpbuf[BUFSIZE], useraddr[BUFSIZE];
   namelist chains=NULL, tmplist;
@@ -569,7 +523,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *
       if ((thisnode=findUser(*users, &user_address))!=NULL)
 	{
 	  syslog(LOG_NOTICE, "Add: user %s already active",useraddr);
-	  check_flood(thisnode);
+	  check_flood(thisnode, conf);
 	  hlcrypt_Send(csocket,"1", NULL);
 	  hlcrypt_Send(csocket,"Already there", NULL);
 	}
@@ -588,8 +542,8 @@ void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *
 		      USER_TYPE_NONE)
 		    {
 		      if ((type==USER_TYPE_PING) &&
-			  (ping_source->sin_addr.s_addr!=INADDR_ANY))
-			  memcpy(&(source_address), &(ping_source->sin_addr),
+			  (conf->defaultping.ping_source.sin_addr.s_addr!=INADDR_ANY))
+			  memcpy(&(source_address), &(conf->defaultping.ping_source.sin_addr),
 			       sizeof(source_address));
 
 		      syslog(LOG_NOTICE, 
@@ -603,7 +557,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *
 		      if (!addUser(users, parms->next->name, NULL, type,
 				      &user_address, ifindex, tmpbuf,
 				      &source_address, chains, time(NULL),
-				      accounting_handle))
+				      conf->accounting_handle))
 			{
 			  freenamelist(&chains);
 			  hlcrypt_Send(csocket,"1", NULL);
@@ -667,7 +621,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct sockaddr_in *
   Send info on one specific user.
   This command accepts hostnames or IP adresses.
   */
-void send_stat(int csocket, namelist parms, usernode users)
+void send_stat(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   static char tmpbuf[BUFSIZE];
   struct in_addr user_address;
@@ -676,14 +630,14 @@ void send_stat(int csocket, namelist parms, usernode users)
   /* Convert the given user reference to an IP address and find the
      user in our list */
   if (makeaddress(parms->name, &user_address) &&
-      (thisnode=findUser(users, &user_address)))
+      (thisnode=findUser(*users, &user_address)))
     {
       strncpy(tmpbuf,inet_ntoa(user_address),BUFSIZE);
       tmpbuf[BUFSIZE-1]='\0';
       if (strcmp(parms->name,tmpbuf))
 	sprintf(tmpbuf,"%s/%s",parms->name,inet_ntoa(user_address));
       syslog(LOG_NOTICE, "Stat: %s", tmpbuf);
-      check_flood(thisnode);
+      check_flood(thisnode, conf);
       sprintf(tmpbuf,"%d",STAT_LINES);
       hlcrypt_Send(csocket,tmpbuf, NULL);
       send_single_stat(csocket, thisnode);
@@ -702,7 +656,7 @@ void send_stat(int csocket, namelist parms, usernode users)
   Check if a user is logged in
   This command accepts hostnames or IP adresses.
   */
-void do_check(int csocket, namelist parms, usernode users)
+void do_check(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   static char tmpbuf[BUFSIZE];
   struct in_addr user_address;
@@ -712,14 +666,14 @@ void do_check(int csocket, namelist parms, usernode users)
      user in our list */
   hlcrypt_Send(csocket,"1", NULL);
   if (makeaddress(parms->name, &user_address) &&
-      (thisnode=findUser(users, &user_address)))
+      (thisnode=findUser(*users, &user_address)))
     {
       strncpy(tmpbuf,inet_ntoa(user_address),BUFSIZE);
       tmpbuf[BUFSIZE-1]='\0';
       if (strcmp(parms->name,tmpbuf))
 	sprintf(tmpbuf,"%s/%s",parms->name,inet_ntoa(user_address));
       syslog(LOG_NOTICE, "Check: %s found", tmpbuf);
-      check_flood(thisnode);
+      check_flood(thisnode, conf);
       hlcrypt_Send(csocket,"Yes", NULL);
     }
   else /* makeaddress */
@@ -735,7 +689,7 @@ void do_check(int csocket, namelist parms, usernode users)
   Delete a user from our list and remove it from the filter chains.
   This command accepts hostnames or IP adresses.
   */
-void del_user(int csocket, namelist parms, usernode *users, void *accounting_handle)
+void del_user(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   struct in_addr user_address;
   static char tmpbuf[BUFSIZE], tmpbuf2[BUFSIZE];
@@ -785,10 +739,10 @@ void del_user(int csocket, namelist parms, usernode *users, void *accounting_han
 		 thisuser->hits
 		 );
 
-	  if (thisuser->block_installed)
-	    fchain_delblock(thisuser->address, STAT_BLOCKCHAIN);
+	  if (strlen(conf->stat_blockchain) && thisuser->block_installed)
+	    fchain_delrule(thisuser->address, conf->stat_blockchain);
 
-	  delUser(users,&user_address, accounting_handle);
+	  delUser(users,&user_address, conf->accounting_handle);
 	  hlcrypt_Send(csocket,"1", NULL);
 	  hlcrypt_Send(csocket,"OK", NULL);
 	}
@@ -807,11 +761,11 @@ void del_user(int csocket, namelist parms, usernode *users, void *accounting_han
 
   Reload all filter chains.
   */
-void reload_chains(int csocket, usernode users)
+void reload_chains(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   syslog(LOG_NOTICE, "Command: reload");
   hlcrypt_Send(csocket,"1", NULL);
-  if (do_reloadchains(users))
+  if (do_reloadchains(*users))
     hlcrypt_Send(csocket,"OK", NULL);
   else
     hlcrypt_Send(csocket,"Failed", NULL);
@@ -822,10 +776,10 @@ void reload_chains(int csocket, usernode users)
   
   Remove all filter chain rules and empty our list of users.
  */
-void reset(int csocket, usernode *users, void *accounting_handle)
+void reset(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   syslog(LOG_NOTICE, "Command: reset");
-  do_reset(users, accounting_handle);
+  do_reset(users, conf->accounting_handle);
   hlcrypt_Send(csocket,"1", NULL);
   hlcrypt_Send(csocket,"OK", NULL);
 }
@@ -835,14 +789,14 @@ void reset(int csocket, usernode *users, void *accounting_handle)
   
   Remove all filter chain rules and quit.
  */
-void quit(int csocket, usernode *users, void *accounting_handle)
+void quit(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   syslog(LOG_NOTICE, "Command: quit");
-  do_reset(users, accounting_handle);
+  do_reset(users, conf->accounting_handle);
   hlcrypt_Send(csocket,"1", NULL);
   hlcrypt_Send(csocket,"OK", NULL);
-  if (accounting_handle)
-    acct_cleanup(accounting_handle);
+  if (conf->accounting_handle)
+    acct_cleanup(conf->accounting_handle);
   close(csocket);
   exit(0);
 }
@@ -852,11 +806,11 @@ void quit(int csocket, usernode *users, void *accounting_handle)
 
   'dump' all the info on all the nodes to the client.
   */
-void dump_state(int csocket, usernode users)
+void dump_state(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   static char tmpbuf[BUFSIZE];
   int i=0;
-  usernode thisnode=users;
+  usernode thisnode=*users;
   syslog(LOG_NOTICE, "Command: dump");
   /* Count the users */
   while (thisnode)
@@ -870,7 +824,7 @@ void dump_state(int csocket, usernode users)
   hlcrypt_Send(csocket, tmpbuf, NULL);
 
   /* ...and then send all the data */
-  thisnode=users;
+  thisnode=*users;
   while (thisnode)
     {
       hlcrypt_Send(csocket,"----------------------------", NULL);
@@ -884,10 +838,10 @@ void dump_state(int csocket, usernode users)
 
   Save all our data to a file that can be loaded later.
   */
-void save_state(int csocket, namelist parms, usernode users)
+void save_state(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   syslog(LOG_NOTICE, "Command: savestate");
-  do_save_state(csocket, parms->name, users);
+  do_save_state(csocket, parms->name, *users);
 }
 
 /*
@@ -895,12 +849,11 @@ void save_state(int csocket, namelist parms, usernode users)
 
   Reset and then load the state from the given file.
   */
-void load_state(int csocket, namelist parms, usernode *users, struct sockaddr_in *ping_source,
-		void *accounting_handle)
+void load_state(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   syslog(LOG_NOTICE, "Command: loadstate");
-  do_reset(users, accounting_handle);
-  do_load_state(csocket, parms->name, users, ping_source, accounting_handle);
+  do_reset(users, conf->accounting_handle);
+  do_load_state(csocket, parms->name, users, &(conf->defaultping.ping_source), conf->accounting_handle);
 }
 
 /*
@@ -908,11 +861,11 @@ void load_state(int csocket, namelist parms, usernode *users, struct sockaddr_in
   
   Count active users
  */
-void return_count(int csocket, usernode users)
+void return_count(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   static char tmpbuf[BUFSIZE];
   int count=0;
-  usernode tmpnode=users;
+  usernode tmpnode=*users;
   syslog(LOG_NOTICE, "Command: count");
   while(tmpnode)
     {
@@ -929,7 +882,7 @@ void return_count(int csocket, usernode users)
   
   return RSS
  */
-void return_rss(int csocket, usernode users)
+void return_rss(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   static char tmpbuf[BUFSIZE];
   syslog(LOG_NOTICE, "Command: rss");
@@ -943,7 +896,7 @@ void return_rss(int csocket, usernode users)
   
   return VSIZE
  */
-void return_vsize(int csocket, usernode users)
+void return_vsize(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   static char tmpbuf[BUFSIZE];
   syslog(LOG_NOTICE, "Command: vsize");
@@ -957,7 +910,7 @@ void return_vsize(int csocket, usernode users)
 
   set/unset malloc() debug flag
   */
-void do_memdebug(int csocket, namelist parms, usernode users)
+void do_memdebug(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   int v;
   static char tmpbuf[BUFSIZE];
@@ -974,7 +927,7 @@ void do_memdebug(int csocket, namelist parms, usernode users)
   Add a tcp block filter line.
   This command accepts hostnames or IP adresses.
  */
-void do_addblock(int csocket, namelist parms, usernode users)
+void do_addblock(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   static char tmpbuf[BUFSIZE];
   namelist chains=NULL, tmplist;
@@ -998,7 +951,7 @@ void do_addblock(int csocket, namelist parms, usernode users)
 	      tmplist=chains;
 	      while (tmplist)
 		{
-		  fchain_addblock(user_address,tmplist->name);
+		  fchain_addrule(user_address,tmplist->name);
 		  tmplist=tmplist->next;
 		}
 	      hlcrypt_Send(csocket,"1", NULL);
@@ -1026,7 +979,7 @@ void do_addblock(int csocket, namelist parms, usernode users)
   Remove a tcp block filter line.
   This command accepts hostnames or IP adresses.
  */
-void do_delblock(int csocket, namelist parms, usernode users)
+void do_delblock(int csocket, namelist parms, usernode *users, struct config *conf)
 {
   static char tmpbuf[BUFSIZE];
   namelist chains=NULL, tmplist;
@@ -1050,7 +1003,7 @@ void do_delblock(int csocket, namelist parms, usernode users)
 	      tmplist=chains;
 	      while (tmplist)
 		{
-		  fchain_delblock(user_address,tmplist->name);
+		  fchain_delrule(user_address,tmplist->name);
 		  tmplist=tmplist->next;
 		}
 	      hlcrypt_Send(csocket,"1", NULL);
@@ -1072,91 +1025,95 @@ void do_delblock(int csocket, namelist parms, usernode users)
   mymalloc_popcontext();
 }
 
+/****************************************************************************/
+
+/*
+  Note: response will contain a 'usage' string if the parameter count is
+  incorrect.
+  Permissions are checked against the "perms" attribute for this client in
+  the configuration file. If the attribute is missing or if it contains "any",
+  the command is accepted. Otherwise, the command must be present in the
+  comma-separated list of commands in "perms".
+ */
+int check_command(char *cmd, char *clientname, char *conffile,
+		  namelist *parms, char *command, int size_command, char **response,
+		  command_handler *fcall)
+{
+  int args, i;
+  namelist tmplist;
+  static char tmpbuf[BUFSIZE];
+  int ret=COMMAND_UNKNOWN;
+  if ((args=splitstring(cmd,' ', parms))<=0)
+    return COMMAND_UNKNOWN;
+  /* Skip the command itself and count only parameters */
+  args--;
+
+  /* Copy the command name from the head of the list and drop it */
+  strncpy(command, (*parms)->name, size_command);
+  command[size_command-1]='\0';
+  tmplist=(*parms);
+  (*parms)=(*parms)->next;
+  tmplist->next=NULL;
+  freenamelist(&tmplist);
+  (*response)=NULL;
+  for (i=0; i<NCOMMANDS; i++)
+    {
+      if (!strcasecmp(command, commandtab[i].name))
+	{
+	  if (args==commandtab[i].args)
+	    {
+	      (*fcall)=commandtab[i].fcall;
+	      ret=commandtab[i].token;
+	    }
+	  else
+	    {
+	      (*response)=commandtab[i].usage;
+	      freenamelist(parms);
+	      return COMMAND_ARGS;
+	    }
+	}
+    }
+  /* If command is known and the number of arguments correct,
+     check permissions */
+  if ((ret!=COMMAND_UNKNOWN) &&
+      conf_getvar(conffile, "client", clientname, "perms", tmpbuf,
+		  sizeof(tmpbuf)))
+    {
+      tmplist=NULL;
+      if (!splitstring(tmpbuf,',',&tmplist) ||
+	  !(findname(tmplist, "any") ||
+	    findname(tmplist, command)))
+	{
+	  freenamelist(&tmplist);
+	  freenamelist(parms);
+	  return COMMAND_PERMS;
+	}
+      else
+	freenamelist(&tmplist);
+    }
+    
+  return ret;
+}
+
 /*
   Parse a command and reply. Always send the number of strings in
   response first
   */
 
-void docommand(int csocket, char *clientname, char *conffile,
-	       usernode *users, struct sockaddr_in *ping_source,
-	       void *accounting_handle)
+void docommand(struct config *conf,
+	       int csocket,
+	       char *clientname,
+	       usernode *users)
 {
   static char tmpbuf[BUFSIZE], command[BUFSIZE];
   static unsigned long oldvsize=0, newvsize;
   namelist parms=NULL;
   char *response=NULL;
+  command_handler fcall;
   if (hlcrypt_Receive(csocket, tmpbuf, BUFSIZE, READ_TIMEOUT, NULL)>0)
     {
-      switch (check_command(tmpbuf, clientname, conffile, &parms, command, sizeof(command), &response))
+      switch (check_command(tmpbuf, clientname, conf->conffile, &parms, command, sizeof(command), &response, &fcall))
 	{
-	case COMMAND_ADD:
-	  add_user(csocket, parms, users, ping_source, accounting_handle);
-	  break;
-
-	case COMMAND_STAT:
-	  send_stat(csocket, parms, *users);
-	  break;
-
-	case COMMAND_CHECK:
-	  do_check(csocket, parms, *users);
-	  break;
-
-	case COMMAND_DEL:
-	  del_user(csocket, parms, users, accounting_handle);
-	  break;
-
-	case COMMAND_RELOAD:
-	  reload_chains(csocket, *users);
-	  break;
-
-	case COMMAND_HELP:
-	  printhelp(csocket);
-	  break;
-
-	case COMMAND_DUMP:
-	  dump_state(csocket, *users);
-	  break;
-
-	case COMMAND_RESET:
-	  reset(csocket, users, accounting_handle);
-	  break;
-
-	case COMMAND_QUIT:
-	  quit(csocket, users, accounting_handle);
-	  break;
-
-	case COMMAND_SAVESTATE:
-	  save_state(csocket, parms, *users);
-	  break;
-
-	case COMMAND_LOADSTATE:
-	  load_state(csocket, parms, users, ping_source, accounting_handle);
-	  break;
-
-	case COMMAND_COUNT:
-	  return_count(csocket, *users);
-	  break;
-
-	case COMMAND_RSS:
-	  return_rss(csocket, *users);
-	  break;
-
-	case COMMAND_VSIZE:
-	  return_vsize(csocket, *users);
-	  break;
-
-	case COMMAND_MEMDEBUG:
-	  do_memdebug(csocket, parms, *users);
-	  break;
-
-	case COMMAND_ADDBLOCK:
-	  do_addblock(csocket, parms, *users);
-	  break;
-
-	case COMMAND_DELBLOCK:
-	  do_delblock(csocket, parms, *users);
-	  break;
-
 	case COMMAND_ARGS:
 	  if (!response)
 	    response="Failed";
@@ -1176,11 +1133,14 @@ void docommand(int csocket, char *clientname, char *conffile,
 		 "Permission denied for \"%s\" from %s",tmpbuf,clientname);
 	  break;
 
-	default:
+	case COMMAND_UNKNOWN:
 	  dejunkifyforlog(tmpbuf);
 	  syslog(LOG_ERR, "Unrecognized command \"%s\" from %s",
 		 tmpbuf,clientname);
 	  hlcrypt_Send(csocket, "0", NULL);
+	  break;
+	default:
+	  fcall(csocket, parms, users, conf);
 	  break;
 	}
       if ((newvsize=getvsize())!=oldvsize)

@@ -46,14 +46,13 @@ struct config
   char pidfile[CONFBSIZE];
   void *accounting_handle;
   struct pingconfig defaultping;
+  int stat_timelimit;  /* 60 */
+  int stat_countlimit; /* 3 */
+  char stat_blockchain[CONFBSIZE]; /* "block/b>DROP" */
+  int stat_blocktime; /*  900 */
+  int stat_blockgc; /* 3600 */
 };
 
 char *params(struct config *conf);
-
-#define STAT_TIMELIMIT 60
-#define STAT_COUNTLIMIT 3
-#define STAT_BLOCKCHAIN "block"
-#define STAT_BLOCKTIME 900
-#define STAT_BLOCKGC 3600
 
 #endif

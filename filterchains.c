@@ -12,130 +12,138 @@ namelist used_chains=NULL;
 
 #define BUFSIZE 8192
 
-/* Flush a given chain */
-void fchain_flush(char *chain)
+void parsechainspec(char *spec, char **table, char **chain, char **direction, char **target)
 {
-  char *table = "filter", *actchain=chain;
-  int ret;
+  static char t[BUFSIZE], c[BUFSIZE], dir[BUFSIZE], targ[BUFSIZE];
   namelist tmplist=NULL;
-
-  if (splitstring(chain, ':', &tmplist)==2)
+  char *p1;
+  (*table)=NULL;
+  (*chain)=NULL;
+  (*direction)=NULL;
+  (*target)=NULL;
+  if (splitstring(spec, ':', &tmplist)==2)
     {
-      table=tmplist->name;
-      actchain=tmplist->next->name;
+      strncpy(t, tmplist->name, sizeof(t));
+      t[sizeof(t)-1]='\0';
+      (*table)=t;
+      spec=tmplist->next->name;
     }
 
-  ret=iptables_flush_chain(table, actchain);
+  strncpy(c, spec, sizeof(c));
+  c[sizeof(c)-1]='\0';
+  (*chain)=c;
+  if ((p1=strchr(c, '/'))!=NULL)
+    {
+      (*p1++)='\0';
+      strncpy(dir, p1, sizeof(dir));
+      dir[sizeof(dir)-1]='\0';
+      (*direction)=dir;
+    }
+  if ((p1=strchr(c, '>'))!=NULL)
+    {
+      (*p1++)='\0';
+      strncpy(targ, p1, sizeof(targ));
+      targ[sizeof(targ)-1]='\0';
+      (*target)=targ;
+    }
+  if ((p1=strchr(dir, '>'))!=NULL)
+    {
+      (*p1++)='\0';
+      strncpy(targ, p1, sizeof(targ));
+      targ[sizeof(targ)-1]='\0';
+      (*target)=targ;
+    }
+
 
   freenamelist(&tmplist);
+}
+
+/* Flush a given chain */
+void fchain_flush(char *spec)
+{
+  char *table, *chain, *direction, *target;
+  int ret;
+  parsechainspec(spec, &table, &chain, &direction, &target);
+  if (!table)
+    table="filter";
+
+  syslog(LOG_INFO,"Flushin table %s, chain %s", table, chain);
+
+  ret=iptables_flush_chain(table, chain);
 }
 
 /* Add a rule to a named chain. Create the chain if it
    doesn't exist, and remember that it is our own chain */
-void fchain_addrule(struct in_addr address, char *chain)
+void fchain_addrule(struct in_addr address, char *spec)
 {
-  char *table = "filter", *actchain=chain;
+  char *table, *chain, *direction, *target;
+  static char chainspec[BUFSIZE];
   int ret;
-  namelist tmplist=NULL, tmplist2=used_chains;
+  namelist tmplist2=used_chains;
+  struct in_addr twofiftyfive, zero;
+  inet_aton("255.255.255.255", &twofiftyfive);
+  inet_aton("0.0.0.0", &zero);
 
-  if (splitstring(chain, ':', &tmplist)==2)
-    {
-      table=tmplist->name;
-      actchain=tmplist->next->name;
-    }
+  parsechainspec(spec, &table, &chain, &direction, &target);
+  if (!table)
+    table="filter";
 
-  while (tmplist2 && (strcmp(tmplist2->name, chain)))
+  if (!target)
+    target="ACCEPT";
+
+  if (!direction)
+    direction="s";
+
+  sprintf(chainspec, "%.32s:%.32s", table, chain);
+
+  while (tmplist2 && (strcmp(tmplist2->name, chainspec)))
     tmplist2 = tmplist2->next;
   if (!tmplist2)
     {
-      if ((ret=iptables_create_chain(table,actchain))==0)
-	  syslog(LOG_ERR,"iptables_create_chain(%s): %m", chain);
+      if ((ret=iptables_create_chain(table,chain))==0)
+	  syslog(LOG_ERR,"iptables_create_chain(%s): %m", chainspec);
       else
 	{
-	  syslog(LOG_INFO,"Created chain %s", chain);
-	  addname(&used_chains, chain);
+	  syslog(LOG_INFO,"Created chain %s", chainspec);
+	  addname(&used_chains, chainspec);
 	}
     }
 
-  syslog(LOG_INFO,"Adding filter line for %s to chain %s", inet_ntoa(address), chain);
-  ret=iptables_add_line(table, actchain, &address);
+  syslog(LOG_INFO,"Adding filter line for %s to table %s, chain %s, direction %s, target %s", inet_ntoa(address), table, chain, direction, target);
 
-  freenamelist(&tmplist);
+  if (!strcmp(direction, "s") || !strcmp(direction, "b"))
+    iptables_add_line(table, chain, &address, &twofiftyfive, &zero, &zero, target);
+
+  if (!strcmp(direction, "d") || !strcmp(direction, "b"))
+    iptables_add_line(table, chain, &zero, &zero, &address, &twofiftyfive, target);
 }
 
 /* Remove a given rule from a named chain if it exists */
-void fchain_delrule(struct in_addr address, char *chain)
+void fchain_delrule(struct in_addr address, char *spec)
 {
-  char *table = "filter", *actchain=chain;
-  int ret;
-  namelist tmplist=NULL;
+  char *table, *chain, *direction, *target;
+  struct in_addr twofiftyfive, zero;
+  inet_aton("255.255.255.255", &twofiftyfive);
+  inet_aton("0.0.0.0", &zero);
 
-  if (splitstring(chain, ':', &tmplist)==2)
-    {
-      table=tmplist->name;
-      actchain=tmplist->next->name;
-    }
+  parsechainspec(spec, &table, &chain, &direction, &target);
+  if (!table)
+    table="filter";
 
-  ret=iptables_delete_line(table, actchain, &address);
+  if (!target)
+    target="ACCEPT";
 
-  freenamelist(&tmplist);
-}
+  if (!direction)
+    direction="s";
 
-/*
-  Add a blocking TCP rule to the chain 'chain' (in) blocking all tcp traffic from the
-  address 'address' (in).
-  */
-void fchain_addblock(struct in_addr address, char *chain)
-{
-  char *table = "filter", *actchain=chain;
-  int ret;
-  namelist tmplist=NULL, tmplist2=used_chains;
+  syslog(LOG_INFO,"Removing filter line for %s to table %s, chain %s, direction %s, target %s", inet_ntoa(address), table, chain, direction, target);
 
-  if (splitstring(chain, ':', &tmplist)==2)
-    {
-      table=tmplist->name;
-      actchain=tmplist->next->name;
-    }
+  if (!strcmp(direction, "s") || !strcmp(direction, "b"))
+    iptables_delete_line(table, chain, &address, &twofiftyfive, &zero, &zero, target);
 
-  while (tmplist2 && (strcmp(tmplist2->name, chain)))
-    tmplist2 = tmplist2->next;
-  if (!tmplist2)
-    {
-      if ((ret=iptables_create_chain(table,actchain))==0)
-	  syslog(LOG_ERR,"iptables_create_chain(%s): %m", chain);
-      else
-	{
-	  syslog(LOG_INFO,"Created chain %s", chain);
-	  addname(&used_chains, chain);
-	}
-    }
+  if (!strcmp(direction, "d") || !strcmp(direction, "b"))
+    iptables_delete_line(table, chain, &zero, &zero, &address, &twofiftyfive, target);
 
-  syslog(LOG_INFO,"Adding block for %s to chain %s", inet_ntoa(address), chain);
-  ret=iptables_add_block(table, actchain, &address);
-
-  freenamelist(&tmplist);
-}
-
-/*
-  Delete a blocking rule from the chain 'chain' (in), for the
-  address 'address' (in) or fail silently if none exists.
-  */
-void fchain_delblock(struct in_addr address, char *chain)
-{
-  char *table = "filter", *actchain=chain;
-  int ret;
-  namelist tmplist=NULL;
-
-  if (splitstring(chain, ':', &tmplist)==2)
-    {
-      table=tmplist->name;
-      actchain=tmplist->next->name;
-    }
-
-  syslog(LOG_INFO,"Removing block for %s from chain %s", inet_ntoa(address), chain);
-  ret=iptables_delete_block(table, actchain, &address);
-
-  freenamelist(&tmplist);
 }
 
 /* Flush all the chains for which we are responsible */

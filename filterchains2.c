@@ -260,7 +260,14 @@ static unsigned char *make_delete_mask(struct ipt_entry *fw)
   return mask;
 }
 
-int iptables_add_delete_line(int type, char *table, char *chain, struct in_addr *addr)
+int iptables_add_delete_line(int type,
+			     char *table,
+			     char *chain,
+			     struct in_addr *saddr,
+			     struct in_addr *smsk,
+			     struct in_addr *daddr,
+			     struct in_addr *dmsk,
+			     char *targetname)
 {
   struct ipt_entry fw;
   struct iptables_target *target, *t;
@@ -270,16 +277,16 @@ int iptables_add_delete_line(int type, char *table, char *chain, struct in_addr 
   size_t size;
   int ret=0;
   unsigned char *mask;
-  char *targetname="ACCEPT";
   u_int16_t proto=0;
 
   memset(&fw, 0, sizeof(fw));
   fw.nfcache |= NFC_IP_SRC;
 
-  if (type>2)
+  handle = iptc_init(table);
+  if (!handle)
     {
-      targetname="DROP";
-//      proto=IPPROTO_TCP;
+      syslog(LOG_ERR,"iptc_init() failed\n");
+      return 0;
     }
 
   /* clear mflags in case do_command gets called a second time
@@ -297,7 +304,12 @@ int iptables_add_delete_line(int type, char *table, char *chain, struct in_addr 
       t->used = 0;
     }
 
-  if (!(target = find_target(targetname, TRY_LOAD)))
+  if (!iptc_is_chain(targetname, handle))
+    target = find_target(targetname, TRY_LOAD);
+  else
+    target = find_target(IPT_STANDARD_TARGET, LOAD_MUST_SUCCEED);
+
+  if (!target)
     {
       syslog(LOG_ERR,"Target \"%s\" not found\n", targetname);
       return 0;
@@ -317,25 +329,16 @@ int iptables_add_delete_line(int type, char *table, char *chain, struct in_addr 
   target->final_check(target->tflags);
   target->used=1;
 
-  handle = iptc_init(table);
-  if (!handle)
-    {
-      syslog(LOG_ERR,"iptc_init() failed\n");
-      free(target->t);
-      return 0;
-    }
-  
-  memcpy(&fw.ip.src, addr, sizeof(struct in_addr));
-  inet_aton("255.255.255.255", &(fw.ip.smsk));
-  inet_aton("0.0.0.0", &(fw.ip.dst));
-  inet_aton("0.0.0.0", &(fw.ip.dmsk));
+  memcpy(&fw.ip.src, saddr, sizeof(struct in_addr));
+  memcpy(&fw.ip.smsk, smsk, sizeof(struct in_addr));
+  memcpy(&fw.ip.dst, daddr, sizeof(struct in_addr));
+  memcpy(&fw.ip.dmsk, dmsk, sizeof(struct in_addr));
   fw.ip.proto=proto;
   e=NULL;
 
   switch(type)
     {
     case 1:
-    case 3:
       if (!(e = generate_entry(&fw, iptables_matches, target->t)))
 	{
 	  free_handle(&handle);
@@ -346,7 +349,6 @@ int iptables_add_delete_line(int type, char *table, char *chain, struct in_addr 
       ret = iptc_append_entry(chain, e, &handle);
       break;
     case 2:
-    case 4:
       if (!(e = generate_entry(&fw, iptables_matches, target->t)))
 	{
 	  free_handle(&handle);
@@ -369,24 +371,26 @@ int iptables_add_delete_line(int type, char *table, char *chain, struct in_addr 
   return ret;
 }
 
-int iptables_add_line(char *table, char *chain, struct in_addr *addr)
+int iptables_add_line(char *table,
+		      char *chain,
+		      struct in_addr *saddr,
+		      struct in_addr *smsk,
+		      struct in_addr *daddr,
+		      struct in_addr *dmsk,
+		      char *target)
 {
-  return iptables_add_delete_line(1,table,chain,addr);
+  return iptables_add_delete_line(1,table,chain,saddr,smsk,daddr,dmsk,target);
 }
  
-int iptables_delete_line(char *table, char *chain, struct in_addr *addr)
+int iptables_delete_line(char *table,
+			 char *chain,
+			 struct in_addr *saddr,
+			 struct in_addr *smsk,
+			 struct in_addr *daddr,
+			 struct in_addr *dmsk,
+			 char *target)
 {
-  return iptables_add_delete_line(2,table,chain,addr);
-}
-
-int iptables_add_block(char *table, char *chain, struct in_addr *addr)
-{
-  return iptables_add_delete_line(3,table,chain,addr);
-}
- 
-int iptables_delete_block(char *table, char *chain, struct in_addr *addr)
-{
-  return iptables_add_delete_line(4,table,chain,addr);
+  return iptables_add_delete_line(2,table,chain,saddr,smsk,daddr,dmsk,target);
 }
 
 int iptables_flush_chain(char *table, char *chain)

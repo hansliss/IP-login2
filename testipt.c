@@ -22,6 +22,10 @@ int fchain_addrule(struct in_addr address, char *chain)
   int ret;
   namelist tmplist=NULL, tmplist2=used_chains;
 
+  struct in_addr twofiftyfive, zero;
+  inet_aton("255.255.255.255", &twofiftyfive);
+  inet_aton("0.0.0.0", &zero);
+
   if (splitstring(chain, ':', &tmplist)==2)
     {
       table=tmplist->name;
@@ -38,7 +42,7 @@ int fchain_addrule(struct in_addr address, char *chain)
       addname(&used_chains, chain);
     }
 
-  ret=iptables_add_line(table, actchain, &address);
+  ret=iptables_add_line(table, actchain, &address, &twofiftyfive, &zero, &zero, "ACCEPT");
 
   freenamelist(&tmplist);
   return ret;
@@ -51,13 +55,17 @@ int fchain_delrule(struct in_addr address, char *chain)
   int ret;
   namelist tmplist=NULL;
 
+  struct in_addr twofiftyfive, zero;
+  inet_aton("255.255.255.255", &twofiftyfive);
+  inet_aton("0.0.0.0", &zero);
+
   if (splitstring(chain, ':', &tmplist)==2)
     {
       table=tmplist->name;
       actchain=tmplist->next->name;
     }
 
-  ret=iptables_delete_line(table, actchain, &address);
+  ret=iptables_delete_line(table, actchain, &address, &twofiftyfive, &zero, &zero, "ACCEPT");
 
   freenamelist(&tmplist);
   return ret;

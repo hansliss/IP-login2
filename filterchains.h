@@ -15,25 +15,13 @@ void fchain_create(char *chain);
   Add a rule to the chain 'chain' (in) permitting all traffic from/to the
   address 'address' (in).
   */
-void fchain_addrule(struct in_addr address, char *chain);
+void fchain_addrule(struct in_addr address, char *spec);
 
 /*
   Delete a rule from the chain 'chain' (in), permitting all traffic from/to
   the address 'address' (in) or fail silently if none exists.
   */
-void fchain_delrule(struct in_addr address, char *chain);
-
-/*
-  Add a blocking TCP rule to the chain 'chain' (in) blocking all tcp traffic from the
-  address 'address' (in).
-  */
-void fchain_addblock(struct in_addr address, char *chain);
-
-/*
-  Delete a blocking rule from the chain 'chain' (in), for the
-  address 'address' (in) or fail silently if none exists.
-  */
-void fchain_delblock(struct in_addr address, char *chain);
+void fchain_delrule(struct in_addr address, char *spec);
 
 /*
   Flush all the chains for which we consider ourselves responsible.

@@ -1,4 +1,5 @@
 #include "usernode.h"
+#include "config.h"
 /*
   Load state data from the file 'filename' (in) and fill 'users' (in/out)
   with new data, after resetting the current state.
@@ -29,9 +30,7 @@ void do_save_state(int csocket, char *filename, usernode users);
   Prerequisites (apart from the obvious):
   * syslog() is used so openlog() before calling this
   */
-void docommand(int csocket, char *clientname, char *conffile,
-	       usernode *users, struct sockaddr_in *ping_source,
-	       void *accounting_handle);
+void docommand(struct config *conf, int csocket, char *clientname, usernode *users);
 
 /*
   Reset to basic state, removing all filter chain rules and
