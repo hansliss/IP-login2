@@ -35,24 +35,30 @@ DISTFILES =
 IPLOGIN2_TARGET=iplogin2
 IPLOGIN2_SOURCES=main.c engine.c find_interface.c misc.c filterchains.c filterchains2.c commands.c icmpping.c arpping.c config.c accounting.c trace.c mymalloc.c usernode.c stringfunc.c varlist.c conffile.c sha1.c md4c.c md5c.c makeaddress.c rijndael-api-fst.c rijndael-alg-fst.c b64.c uu_aes.c genseed.c hlcrypt.c
 IPLOGIN2_OBJS=main.o engine.o find_interface.o misc.o filterchains.o filterchains2.o commands.o icmpping.o arpping.o config.o accounting.o trace.o mymalloc.o usernode.o stringfunc.o varlist.o conffile.o sha1.o md4c.o md5c.o makeaddress.o rijndael-api-fst.o rijndael-alg-fst.o b64.o uu_aes.o genseed.o hlcrypt.o 
+MANPAGES8 += iplogin2.8
 
 IPLOGIN2_CONFFILE=iplogin2.conf
+MANPAGES5 += iplogin2-conffile.5
 
 ILADMIN_TARGET=iladmin
 ILADMIN_SOURCES=iladmin.c 
 ILADMIN_OBJS=iladmin.o ilglue.o syslog_names.o varlist.o stringfunc.o conffile.o sha1.o md4c.o md5c.o makeaddress.o rijndael-api-fst.o rijndael-alg-fst.o b64.o uu_aes.o genseed.o hlcrypt.o
+MANPAGES8 += iladmin.8
 
 ILCOUNT_TARGET=ilcount
 ILCOUNT_SOURCES=ilcount.c
 ILCOUNT_OBJS=ilcount.o ilglue.o syslog_names.o varlist.o stringfunc.o conffile.o sha1.o md4c.o md5c.o makeaddress.o rijndael-api-fst.o rijndael-alg-fst.o b64.o uu_aes.o genseed.o hlcrypt.o
+MANPAGES8 += ilcount.8
 
 ILCMD_TARGET=ilcmd
 ILCMD_SOURCES=ilcmd.c
 ILCMD_OBJS=ilcmd.o varlist.o stringfunc.o conffile.o sha1.o md4c.o md5c.o makeaddress.o rijndael-api-fst.o rijndael-alg-fst.o b64.o uu_aes.o genseed.o hlcrypt.o
+MANPAGES8 += ilcmd.8
 
 NETPROBE_TARGET=netprobe
 NETPROBE_SOURCES=netprobe.c find_interface.c 
 NETPROBE_OBJS=netprobe.o find_interface.o
+MANPAGES8 += netprobe.8
 
 LIBACCLIB=acclib_test.la
 LIBACCLIB_SRC=acclib_test.c
@@ -81,8 +87,10 @@ CFLAGS+=-I$(IPTINCDIR) -DIPTVERSION=\"$(IPTVERSION)\"
 all: $(TARGETS)
 
 install: all
-	$(top_srcdir)/mkinstalldirs $(bindir) $(libdir) $(includedir) $(sysconfdir)
+	$(top_srcdir)/mkinstalldirs $(bindir) $(libdir) $(includedir) $(sysconfdir) $(mandir)/man5 $(mandir)/man8
 	$(INSTALL) -b $(PROGRAMS) $(bindir)/
+	$(INSTALL) -b $(MANPAGES5) $(mandir)/man5
+	$(INSTALL) -b $(MANPAGES8) $(mandir)/man8
 	$(LIBTOOL) $(INSTALL) -b $(LIBRARIES) $(libdir)/
 	$(INSTALL) -b -m0644 $(LIB_HEADER) $(includedir)/
 	if test ! -f $(sysconfdir)/$(IPLOGIN2_CONFFILE); then install -m0600 $(IPLOGIN2_CONFFILE).inst $(sysconfdir)/$(IPLOGIN2_CONFFILE); else echo Preserving existing $(sysconfdir)/$(IPLOGIN2_CONFFILE); fi

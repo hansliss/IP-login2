@@ -495,7 +495,7 @@ int mainloop(struct config *conf, int command_server_socket)
   signal(SIGUSR1, savestate);
   signal(SIGUSR2, savestate);
   signal(SIGTERM, savestate);
-  if (alarmtime != 0)
+  if (alarmtime != 0 && strlen(conf->loadfile)>0)
     {
       signal(SIGALRM, savestate);
       alarm(alarmtime);

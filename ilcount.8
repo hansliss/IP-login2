@@ -1,0 +1,52 @@
+.\"
+.Dd "Sep 08, 2004"
+.Dt ILCOUNT 8
+.Os "Uppsala Universitet"
+.Sh NAME
+.Nm ilcount
+.Nd general-purpose administrative client for iplogin2
+.Sh SYNOPSIS
+.Nm ilcount
+.Ar conffile
+.Ar clientname
+.Sh DESCRIPTION
+.Nm ilcount
+is a simple command line interface to 
+.Nm iplogin2
+to get the current number of logged-in clients in a script or from the command line.
+It connects to
+.Nm iplogin2
+and executes a "count" command, printing out the result.
+.Pp
+.Nm ilcount
+uses a
+.Ar conffile
+to find out which server to connect to and other parameters. The clientname is
+used to find the correct configuration inside this configuration file.
+.Pp
+.Bl -tag -width flag
+.It Ar conffile
+is the configuration file to use.
+.It Ar clientname
+is the name of the client definition to use in
+.Ar conffile
+.El
+.Sh SECRET KNOWLEDGE
+.Nm ilcount
+actually has compiled-in default values for 
+.Ar conffile
+and
+.Ar clientname.
+The
+.Ar conffile,
+when given as ".", will default to either one of two compiled-in
+values. The
+.Ar clientname,
+when given as ".", will default to "localhost".
+.Sh BUGS
+The command-line syntax should be more flexible.
+.Sh SEE ALSO
+.Xr iplogin2 8 ,
+.Xr iladmin 8 ,
+.Xr ilcmd 8 ,
+.Xr iplogin2-conffile 5

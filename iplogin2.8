@@ -1,0 +1,143 @@
+.\"
+.Dd "Sep 08, 2004"
+.Dt IPLOGIN2 8
+.Os "Uppsala Universitet"
+.Sh NAME
+.Nm iplogin2
+.Nd client monitor for network login systems
+.Sh SYNOPSIS
+.Nm iplogin2
+.Ar conffile
+.Ar servername
+.Op Fl l Ar statefile
+.Op Fl V
+.Sh DESCRIPTION
+.Nm iplogin2
+is a daemon that monitors network users' access to the Internet in a controlled
+environment, such as a commercial broadband service or a conference room.
+.Pp
+Logging in, logging out and any manual/automatic administration is made through an
+encrypted TCP connection directly to the
+.Nm iplogin2
+daemon, using a set of commands defined by the server.
+.Pp
+The monitoring is achieved using either ICMP ping (for non-local clients) or
+ARP ping (for clients on logically connected networks). When a client has been
+nonresponsive for a specified time, it will be logged out automatically. There is,
+however, no inactivity logout functionality.
+.Pp
+.Bl -tag -width flag
+.It Ar conffile
+is the configuration file, containing numerous parameters controlling the behaviour
+of
+.Nm iplogin2
+and the access of administrative clients to the daemon.
+.It Ar servername
+is the name of the server process (defined in 
+.Ar "conffile")
+that the program should run as.
+.It Fl l Ar statefile
+is a file from which
+.Nm iplogin2
+will load its state, and to which
+.Nm iplogin2
+can also be configured to auto-save its state periodically.
+.It Fl V
+This option will cause
+.Nm iplogin2
+to print out its version number and exit.
+.El
+.Sh ADMINISTRATIVE COMMANDS
+.Bl -tag -width foobar
+.It add Ar address Ar account Ar chain[,...]
+Add a new client with IP address
+.Ar "address",
+account name
+.Ar account
+(for informational purposes), and a list of netfilter chains to add the client to.
+.It stat Ar address
+Get stats for the client with the address
+.Ar "address".
+.It tstat Ar filename
+Dump traffic stats to the file
+.Ar "filename".
+.It check Ar address
+Check whether the client with address
+.Ar address
+is logged in.
+.It del Ar address
+Delete (log out) the client with the address
+.Ar "address".
+.It deluser Ar user
+Delete (log out) the client with the account name
+.Ar "user".
+.It reload
+Reload all iptables chains.
+.It help
+Print the list of commands.
+.It dump
+Show information on all logged-in clients.
+.It list
+List all clients on short form.
+.It reset
+Reset state - log out all clients and reset the iptables chains.
+.It quit
+Stop the daemon.
+.It savestate Ar filename
+Save state to file
+.Ar "filename".
+.It loadstate Ar filename
+Load state from file
+.Ar "filename".
+.It count
+Count logged-in clients.
+.It rss
+Get RSS (debug).
+.It vsize
+Get vsize (debug).
+.It memdebug Ar {0,1}
+Mem usage debugging on or off.
+.It addblock Ar address Ar chain[,...]
+Add tcp block (DENY rule) for address
+.Ar address
+to iptables chain
+.Ar "chain".
+.It delblock Ar address Ar chain[,...]
+Delete tcp block for address
+.Ar address
+from iptables chain
+.Ar "chain".
+.El
+.Sh ACCOUNTING
+An accounting module (see
+.Xr iplogin2-conffile 5 )
+should contain four exported functions as follows:
+.Pp
+.Bl -tag -width foobar
+.It int accounting_open(char *\fIid\fR);
+.It int accounting_login(char *\fIaccount\fR, char *\fIsession_id\fR);
+.It int accounting_logout(char *\fIaccount\fR, char *\fIsession_id\fR);
+.It int accounting_close();
+.El
+.Sh BUGS
+.Nm iplogin2
+shouldn't assume that all networks that it handles have the same
+interface characteristics. Timing parameters should be selectable
+by network prefix.
+.Pp
+The netfilter management code in
+.Nm iplogin2
+is a bit of a hack. It should be replaced with something slightly saner.
+.Sh SEE ALSO
+.Xr iladmin 8 ,
+.Xr ilcmd 8 ,
+.Xr ilcount 8 ,
+.Xr iplogin2_conffile 5
+.Sh HISTORY
+.Nm iplogin2
+was developed as a replacement for
+.Nm IP-login,
+which is part of Bifrost Nomad (see \fIhttp://bifrost.slu.se\fR)
+.Pp
+Martin Josefsson (\fIgandalf@wlug.westbo.se\fR) has made invaluable
+contributions and bug fixes to this code.

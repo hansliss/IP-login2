@@ -1,0 +1,32 @@
+.\"
+.Dd "Sep 08, 2004"
+.Dt NETPROBE 8
+.Os "Uppsala Universitet"
+.Sh NAME
+.Nm netprobe
+.Nd network client ARP/ICMP probe
+.Sh SYNOPSIS
+.Nm netprobe
+.Ar Fl n Ar count
+.Ar Fl d Ar delay
+.Ar host ...
+.Sh DESCRIPTION
+.Nm netprobe
+will determine interface index and interface name, MAC address, source IP address
+and node type (ARP or ICMP) for a host, and will then send one or more probes
+to that host and wait for replies.
+.Pp
+.Bl -tag -width flag
+.It Fl n Ar count
+is the number of probes to send. Default is 1.
+.It Fl d Ar delay
+is the delay in ms between each probe. Default is 10000.
+.El
+.Sh BUGS
+.Sh SEE ALSO
+.Xr iplogin2 8 ,
+.Xr iladmin 8 ,
+.Xr ilcmd 8 ,
+.Xr ilcount 8 ,
+.Xr iplogin2-conffile 5
+

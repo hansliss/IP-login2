@@ -1,0 +1,213 @@
+.\"
+.Dd "Sep 08, 2004"
+.Dt IPLOGIN2 8
+.Os "Uppsala Universitet"
+.Sh NAME
+.Nm iplogin2-conffile
+.Nd configuration file syntax for
+.Nm iplogin2
+.Sh DESCRIPTION
+.Nm iplogin2
+uses a
+.Ar "conffile",
+containing numerous parameters controlling the behaviour of
+.Nm iplogin2
+and the access of administrative clients to the daemon.
+.Sh SYNTAX
+The configuration file contains a stanza for each item. A
+.Ar server
+definition will be a stanza, starting with
+.Nm server Ar server
+at the beginning of a new line, at least one empty line away from the previous stanza.
+.Pp
+Attribute definitions within a stanza are on separate lines, and begin with one or more
+spaces or tabs. They are on the form
+.Ar attribute
+=
+.Ar value.
+.Pp
+Comments are preceded with the '#' character; everything following a '#' character on a line
+is completely ignored.
+.Pp
+Please note that the client and server parameters can be in different files, even though the
+sample file and this manual page may seem to assume that both client and server use the
+same file. Still, you may want to run the client and the server on different machines, and
+then you can safely delete many irrelevant attributes on both sides. What goes where is however
+not described in this manual page.
+.Sh SERVER CONFIGURATION PARAMETERS
+\fINota bene: most or all of these parameters are optional, but when in doubt,
+use the defaults that are in the sample file provided.\fR
+.Pp
+.Bl -tag -width flabbergasted
+.It ip = Ar address
+This is the address that 
+.Ar clients
+will use to connect to this server - this is actually used only by clients.
+.It syslog_facility = Ar facility
+specifies a 
+.Xr syslog 2
+facility that 
+.Nm iplogin2
+will use for logging purposes.
+.It syslog_name = Ar name
+is the 
+.Ar ident
+parameter to the 
+.Xr openlog 3
+call, i.e. the identity this 
+.Nm iplogin2
+process will use when syslogging.
+.It pidfile = Ar filename
+specifies a fully qualified path name to a file used for storing the process ID of this 
+.Nm iplogin2
+ process.
+.It listen_address = Ar address-or-name
+is the IP address on which this 
+.Nm iplogin2
+ server will listen to administrative client connections.
+.It listen_port = Ar service-name-or-port-number
+is the TCP port number or service name that this 
+.Nm iplogin2
+ server will use for
+administrative client connections.
+.It accept_interval = Ar interval
+is the number of milliseconds of actual work this 
+.Nm iplogin2
+ server does between
+looking for new connections from administrative clients. This is a 
+.Ar tuning parameter.
+.It accept_timeout = Ar timeout
+is the number of milliseconds that this 
+.Nm iplogin2
+server will wait for administrative client connections. This is a 
+.Ar tuning parameter.
+.It logout_timeout = Ar seconds
+is the number of seconds that the operator wishes that a nonresponsive
+network login client should be kept before logging it out. This is
+not a definitive value - in the case of many logged-in clients, the
+actual logout timeout may be higher than this.
+.It min_pinginterval = Ar microseconds
+is the 
+.Ar minimum
+delay between probes. This depends on the interface/network types in use,
+and has to be set to the worst-case value, i.e. if you have just one WiFi
+network with clients on it, you may need to set this to a high value regardless
+of what other network kinds you have connected.
+.It missdiff = Ar seconds
+specifies the number of seconds before a probe is considered not to have been responded to.
+.It ping_source = Ar name-or-address
+specifies the IP address to set as 
+.Ar source
+address in ICMP ping packets. (this option may or may not work correctly at the moment)
+.It accounting_id = Ar identity
+is the identity used for this
+.Nm iplogin2
+process, when doing accounting.
+.It accounting_lib = Ar filename
+is the fully qualified pathname to a dynamically loadable accounting module to use
+for accounting. See
+.Xr iplogin2 8
+for information on what this module should be like.
+.It state_timelimit = Ar n
+specifies the minimum number of seconds that must pass between
+.Ar check
+or
+.Ar add
+commands to not be considered \fIflooding\fR.
+.It state_countlimit = Ar n
+specifies that the user should be added to the 
+.Ar block
+chain when 
+.Ar n
+spurious
+.Ar check
+or
+.Ar add
+commands have been received.
+.It stat_blockchain = Ar chainspec
+specifies the name of the chain for blocking users, along with other parameters.
+See the \fBCHAIN SPECIFICATIONS\fR section for more info on the format of this
+attribute value.
+.It stat_blocktime = Ar seconds
+specifies the number of seconds a user will be kept in the \fIblocked\fR state
+after being blocked.
+.It stat_blockgc = Ar seconds
+specifies how often (in seconds) the block chain will be cleared completely.
+.It counterchain = Ar chain-name
+names an iptables chain that will be used for collecting traffic statistics
+for each user.
+.It counterinterval = Ar seconds
+specifies how often
+.Nm iplogin2
+will collect traffic statistics.
+.It rxidle = Ar seconds
+specifies an idle-timeout period for \fIreceived\fR traffic from this client, that is,
+the client will be automatically logged out after being idle for this many seconds.
+.It txidle = Ar seconds
+specifies an idle-timeout period for \fIreceived\fR traffic to this client, that is,
+the client will be automatically logged out after being idle for this many seconds.
+.It idlehosts = Ar list-of-addresses
+is a comma-separated list of host addresses and network prefixes for which the idle-timeout
+mechanism is in force.
+.It savetime = Ar seconds
+is the autosave interval, and specifies how often the state is saved to the server's
+.Ar statefile
+if one has been given on the command line.
+.It key = Ar keystring
+is the key for authenticating this server to administrative clients.
+.It flush_on_start Ar list-of-chains
+is a comma-separated list of iptables chains to flush (empty) when the server starts.
+.It tracefile Ar filename
+specifies a file for tracing the activities of
+.Nm "iplogin2".
+.El
+.Sh CLIENT CONFIGURATION PARAMETERS
+.Bl -tag -width flabbergasted
+.It ip Ar address-or-name
+identifies a client \fIto the server\fR - this is the attribute that the server
+uses to identify an administrative client that is connecting.
+.It key = Ar keystring
+is the key for authenticating this administrative client to the server.
+.It perms = Ar list
+is a comma-separated list of command that this client is allowed to execute.
+This is used only by the server. The word "\fIany\fR" in this list gives
+the client permission to execute any command.
+.It syslog_facility = Ar facility
+specifies a 
+.Xr syslog 2
+facility that this client will use for logging purposes.
+.It syslog_name = Ar name
+is the 
+.Ar ident
+parameter to the 
+.Xr openlog 3
+call, i.e. the identity this client will use when syslogging.
+.It servername = Ar name
+specifies the server to connect to - the client will use this value
+to look up the server parameters in the configuration file.
+.It server_port = Ar service-or-port
+specifies the port number or service name to connect to on the server.
+.El
+.Sh CHAIN SPECIFICATIONS
+A \fIchain specification\fR names an iptables chain, and can optionally also
+specify in which table the chain is located, the direction of traffic, and the
+target to use for filter lines.
+.Pp
+A colon (':') followed by a table name
+specifies
+the table.
+A slash ('/') followed by a single character
+specifies the
+traffic direction to match, where the character chan be
+either 's' for "source", 'd' for "destination" or 'b' for "both"
+(in which case any rules added or removed will be double).
+A greater than ('>') followed by a chain name
+specifies
+the target name for rules added. This is normally either ACCEPT
+for the normal \fIuser\fR chain, and DROP for the \fIblock\fR
+chain, but can be any existing iptables chain.
+.Sh SEE ALSO
+.Xr iplogin2 8 ,
+.Xr iladmin 8 ,
+.Xr ilcmd 8 ,
+.Xr ilcount 8

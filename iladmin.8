@@ -1,0 +1,40 @@
+.\"
+.Dd "Sep 08, 2004"
+.Dt ILADMIN 8
+.Os "Uppsala Universitet"
+.Sh NAME
+.Nm iladmin
+.Nd general-purpose administrative client for iplogin2
+.Sh SYNOPSIS
+.Nm iladmin
+.Ar [clientname]
+.Sh DESCRIPTION
+.Nm iladmin
+is a simple menu/command line interface to 
+.Nm iplogin2
+allowing the operator to add, remove or check statistics on clients, as
+well as executing general
+.Nm iplogin2
+commands.
+.Pp
+.Nm iladmin
+uses a \fIconffile\fR to find out which server to connect to and other parameters.
+The configuration filename is compiled into the binary, and the clientname has a
+compiled-in default value that matches the one in the sample configuration file,
+but can also be given on the command line.
+.Pp
+The client definition in the configuration file will specify which
+.Nm iplogin2
+server to connect to, as well as port number and client and server keys.
+.Pp
+.Bl -tag -width flag
+.It Ar clientname
+is the client definition in the configuration file to use.
+.El
+.Sh BUGS
+It should be possible to select an alternate configuration file on the command line.
+.Sh SEE ALSO
+.Xr iplogin2 8 ,
+.Xr ilcmd 8 ,
+.Xr ilcount 8 ,
+.Xr iplogin2-conffile 5

@@ -1,0 +1,21 @@
+/*
+ *   This program is free software; you can redistribute it and/or
+ *   modify it under the terms of the GNU General Public License
+ *   as published by the Free Software Foundation; either version
+ *   2 of the License, or (at your option) any later version.
+ *
+ *   Hans Liss <hans.liss@its.uu.se>  Uppsala Universitet
+ *
+ * This program has inherited code from the following sources:
+ *
+ *  * Some internal UU code by Torbjörn Wictorin torbjorn.wictorin@its.uu.se 
+ *  * The IP-login program of Bifrost Nomad - http://bifrost.slu.se
+ *  * Mike Muuss 'ping' program - http://ftp.arl.mil/~mike/ping.html
+ *  * The Linux Netfilter project - http://www.netfilter.org
+ *  * RSA Data Security's md4 and md5 code, from rfc1320 and rfc1321
+ *  * The SHA1 Message Digest algorithm reference code, from rfc3174
+ *  * Fast AES implementation by Vincent Rijmen et al:
+ *    http://www.esat.kuleuven.ac.be/~rijmen/rijndael/
+ *
+ *
+ */

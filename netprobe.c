@@ -371,12 +371,12 @@ int do_icmpprobe(struct in_addr *src, struct in_addr *dst)
       FD_SET(s, &myfdset);
       if (!(r=select(s+1, &myfdset, NULL, NULL, &select_timeout)))
 	{
-	  fprintf(stderr, "[ARP] select() timeout\n");
+	  fprintf(stderr, "[ICMP] select() timeout\n");
 	  continue;
 	}
       if (r == -1)
 	{
-	  perror("[ARP] select()");
+	  perror("[ICMP] select()");
 	  continue;
 	}
       alen=sizeof(struct sockaddr_in);
