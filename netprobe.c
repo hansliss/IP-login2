@@ -11,6 +11,8 @@
 #include <linux/sockios.h>
 #include <linux/if.h>
 #include <linux/if_arp.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <time.h>
 
 #include "autoconfig.h"
@@ -150,7 +152,7 @@ int arpprobe(int s, struct in_addr *src, struct in_addr *dst, struct sockaddr_ll
 
   if (!reply_received)
     {
-      fprintf(stderr, "[ARP] arpprobe() timeout - no reply received\n");
+      fprintf(stderr, "[ARP] timeout - no reply received\n");
       return 0;
     }
 
@@ -207,35 +209,31 @@ int do_arpprobe(int ifindex, struct in_addr *src, struct in_addr *dst)
   if (arpprobe(s, src, dst, &me, &he) &&
       arpprobe(s, src, dst, &me, &he))
     {
-      printf("Received ARP reply!\n");
-      printf("Me:\n---\n");
-      if (me.sll_family != AF_PACKET)
-	printf("sll_family: %d\n", me.sll_family);
-      if (me.sll_protocol != htons(ETH_P_ARP))
-	printf("sll_protocol: %d\n", me.sll_protocol);
-      if (me.sll_hatype!=ARPHRD_ETHER)
-	printf("sll_hatype: %d\n", me.sll_hatype);
-      if (me.sll_halen!=6)
-	printf("sll_halen: %d\n", me.sll_halen);
-      printf("MAC address: %02x", me.sll_addr[0]);
+      printf("Received ARP reply from %02x", me.sll_addr[0]);
       for (i=1; i<me.sll_halen; i++)
 	printf(":%02x", me.sll_addr[i]);
-      printf("\n");
-
-      printf("\n");
-      printf("He:\n---\n");
-      if (he.sll_family != AF_PACKET)
-	printf("sll_family: %d\n", he.sll_family);
-      if (he.sll_protocol != htons(ETH_P_ARP))
-	printf("sll_protocol: %d\n", he.sll_protocol);
-      if (he.sll_hatype!=ARPHRD_ETHER)
-	printf("sll_hatype: %d\n", he.sll_hatype);
-      if (he.sll_halen!=6)
-	printf("sll_halen: %d\n", he.sll_halen);
-      printf("MAC address: %02x", he.sll_addr[0]);
+      printf(" to %02x", he.sll_addr[0]);
       for (i=1; i<he.sll_halen; i++)
 	printf(":%02x", he.sll_addr[i]);
-      printf("\n");
+      printf("!\n");
+
+      if (me.sll_family != AF_PACKET)
+	printf("me: sll_family: %d\n", me.sll_family);
+      if (me.sll_protocol != htons(ETH_P_ARP))
+	printf("me: sll_protocol: %d\n", me.sll_protocol);
+      if (me.sll_hatype!=ARPHRD_ETHER)
+	printf("me: sll_hatype: %d\n", me.sll_hatype);
+      if (me.sll_halen!=6)
+	printf("me: sll_halen: %d\n", me.sll_halen);
+
+      if (he.sll_family != AF_PACKET)
+	printf("he: sll_family: %d\n", he.sll_family);
+      if (he.sll_protocol != htons(ETH_P_ARP))
+	printf("he: sll_protocol: %d\n", he.sll_protocol);
+      if (he.sll_hatype!=ARPHRD_ETHER)
+	printf("he: sll_hatype: %d\n", he.sll_hatype);
+      if (he.sll_halen!=6)
+	printf("he: sll_halen: %d\n", he.sll_halen);
     }
   else
     {
@@ -246,6 +244,208 @@ int do_arpprobe(int ifindex, struct in_addr *src, struct in_addr *dst)
   close(s);
   return 1;
 }
+
+/*
+  Most of this code was adapted from Mike Muuss' 'ping' program.
+  No local variables were hurt in creating this code.
+  */ 
+
+#define ICMPDATALEN      (64 - ICMP_MINLEN)
+
+/*
+ * in_cksum
+ *
+ * Checksum routine for Internet Protocol family headers (C version)
+ */
+static u_int16_t in_cksum(u_int16_t *addr, int len)
+{
+  int nleft = len;
+  u_int16_t *w = addr;
+  u_int32_t sum = 0;
+  u_int16_t answer = 0;
+  
+  /*
+   * Our algorithm is simple, using a 32 bit accumulator (sum), we add
+   * sequential 16 bit words to it, and at the end, fold back all the
+   * carry bits from the top 16 bits into the lower 16 bits.
+   */
+  while (nleft > 1)
+    {
+      sum += *w++;
+      nleft -= 2;
+    }
+  
+  /* mop up an odd byte, if necessary */
+  if (nleft == 1)
+    {
+      answer=0;
+      *(u_char *)(&answer) = *(u_char *)w ;
+      sum += answer;
+    }
+
+  /* add back carry outs from top 16 bits to low 16 bits */
+  sum = (sum >> 16) + (sum & 0xffff);     /* add hi 16 to low 16 */
+  sum += (sum >> 16);                     /* add carry */
+  answer = ~sum;                          /* truncate to 16 bits */
+  return(answer);
+}
+
+/*
+  We just build an ICMP 'echo request' packet from scratch and send it
+  out on the given socket. Most of the options and payload stuff from
+  the 'ping' program has been removed and global variables have been
+  made local.
+  */
+int do_icmpprobe(struct in_addr *src, struct in_addr *dst)
+{
+  static u_int8_t outpack[IP_MAXPACKET];
+  struct icmp *icp=(struct icmp*)outpack;
+  size_t packlen;
+  int sentlen;
+  struct sockaddr_in whereto;
+  struct sockaddr_in reply_source;
+  static long ntransmitted=0;
+  int s;
+  static u_int16_t ident=0xa5;
+
+  int alen;
+  static char packet[8192];
+  struct ip *inpack_ip = (struct ip *)packet;
+  int ipoptlen;
+  struct icmp *inpack_icmp;
+  int hlen;
+
+  int r;
+  int len;
+  int reply_received;
+
+  time_t start, end;
+
+  fd_set myfdset;
+  struct timeval select_timeout={5, 0};
+
+  if ((s = socket(AF_INET, SOCK_RAW, 1)) < 0)
+    {
+      perror("[ICMP] socket()");
+      return 0;
+    }
+
+  icp->icmp_type = ICMP_ECHO;
+  icp->icmp_code = 0;
+  icp->icmp_cksum = 0;
+  icp->icmp_seq = ntransmitted++;
+  icp->icmp_id = ident;
+
+  memset(&whereto, 0, sizeof(whereto));
+  whereto.sin_family=AF_INET;
+  memcpy(&whereto.sin_addr, dst, sizeof(whereto.sin_addr));
+
+  /* get total length of outpack (ICMPDATALEN is total length of payload) */
+  packlen = ICMPDATALEN + (icp->icmp_data - outpack);
+
+  /* compute ICMP checksum here */
+  icp->icmp_cksum = in_cksum((u_short *)outpack, packlen);
+
+  sentlen = sendto(s, outpack, packlen, 0,
+		   (struct sockaddr *)&whereto, sizeof(whereto));
+  if (sentlen != (int)packlen)
+    {
+      if (sentlen < 0)
+	{
+	  perror("[ICMP] sendto()");
+	  close(s);
+	  return 0;
+	}
+      else
+	{
+	  fprintf(stderr, "[ICMP] sendto(): short send\n");
+	  close(s);
+	  return 0;
+	}
+    }
+  time(&start);
+
+  reply_received=0;
+  while (time(&end)-start < 5)
+    {
+      FD_ZERO(&myfdset);
+      FD_SET(s, &myfdset);
+      if (!(r=select(s+1, &myfdset, NULL, NULL, &select_timeout)))
+	{
+	  fprintf(stderr, "[ARP] select() timeout\n");
+	  continue;
+	}
+      if (r == -1)
+	{
+	  perror("[ARP] select()");
+	  continue;
+	}
+      alen=sizeof(struct sockaddr_in);
+      if ((len=recvfrom(s, packet, sizeof(packet), 0,
+			(struct sockaddr *)(&reply_source), &alen))<0)
+	{
+	  perror("[ICMP] recvfrom()");
+	  continue;
+	}
+
+      if ((hlen=(inpack_ip->ip_hl) << 2) < sizeof(struct ip))
+	{
+	  fprintf(stderr, "[ICMP] Short packet (1)\n");
+	  continue;
+	}
+
+      if (hlen>len)
+	{
+	  fprintf(stderr,"[ICMP] Long packet (1)\n");
+	  continue;
+	}
+
+      ipoptlen = hlen - sizeof(struct ip);
+      len-=hlen;
+      inpack_icmp = (struct icmp *)(packet + sizeof(struct ip) + ipoptlen);
+  
+      if (len < ICMP_MINLEN + ICMPDATALEN)
+	{
+	  fprintf(stderr, "[ICMP] Short packet (2)\n");
+	  continue;
+	}
+
+      if (inpack_icmp->icmp_type != ICMP_ECHOREPLY)
+	{
+	  fprintf(stderr, "[ICMP] Wrong packet type %d\n", inpack_icmp->icmp_type);
+	  continue;
+	}
+
+      if (inpack_icmp->icmp_id != ident)
+	{
+	  fprintf(stderr, "[ICMP] Wrong ident in ICMP reply %04x\n", inpack_icmp->icmp_id);
+	  continue;
+	}
+
+      if (memcmp(&(reply_source.sin_addr.s_addr), &(dst->s_addr), sizeof(reply_source.sin_addr.s_addr)))
+	{
+	  fprintf(stderr, "[ICMP] Wrong source address in ICMP reply: %s\n", inet_ntoa(reply_source.sin_addr));
+	  continue;
+	}
+
+      reply_received=1;
+      break;
+    }
+
+  ident++;
+
+  if (!reply_received)
+    {
+      fprintf(stderr, "[ICMP] timeout - no reply received\n");
+      return 0;
+    }
+
+  printf("Received ICMP echo reply from %s to ", inet_ntoa(reply_source.sin_addr));
+  printf("%s!\n", inet_ntoa(*src));
+  return 1;
+}
+
+
 
 int main(int argc, char *argv[])
 {
@@ -276,9 +476,11 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "Wrong address family, only IPv4 supported\n");
       else
 	{
+	  printf("Checking %s:\n", argv[i]);
 	  src=&s;
 	  dst=&(((struct sockaddr_in *)(dest->ai_addr))->sin_addr);
 	  getnameinfo(dest->ai_addr, dest->ai_addrlen, ip, sizeof(ip), NULL, 0, NI_NUMERICHOST);
+	  printf("IP address: %s\n", ip);
 	  idx = find_interface(&(((struct sockaddr_in *)(dest->ai_addr))->sin_addr), &s, tmpbuf2, sizeof(tmpbuf2));
 	  if (idx >= 0)
 	    {
@@ -298,18 +500,22 @@ int main(int argc, char *argv[])
 		  break;
 		}
 	      strcpy(tmpbuf,inet_ntoa(s));
-	      printf("%s/%s: Interface index %d, name %s, src addr=%s, type=%s\n",
-		     argv[i], ip, idx, tmpbuf2, tmpbuf, typetext);
+	      printf("Interface index %d, name %s, src addr=%s, type=%s\n",
+		     idx, tmpbuf2, tmpbuf, typetext);
 	      switch(t)
 		{
 		case USER_TYPE_ARPPING:
 		  do_arpprobe(idx, src, dst);
+		  break;
+		case USER_TYPE_PING:
+		  do_icmpprobe(src, dst);
 		  break;
 		}
 	    }
 	  else
 	    printf("Error for address %s/%s: ret=%d\n",
 		   argv[i], ip, idx);
+	  printf("\n");
 	}
     }
   closelog();
