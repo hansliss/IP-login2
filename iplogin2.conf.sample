@@ -21,6 +21,12 @@ server nomad
 	stat_blocktime=900
 	stat_blockgc=3600
 	counterchain=users
+	counterinterval=120
+	rxidle=900
+	txidle=900
+	idlehosts=1.1.1.1/32,2.2.2.2/255.255.255.255,3.3.3.3
+	savetime=300
+#	permitted_chains=users,nat:users
 #	flush_on_start=foo,bar,mangle:users
 #	tracefile=./iplogin2.trace
 #	ping_source=130.238.131.234

@@ -129,7 +129,7 @@ int initialize(struct config *conf)
 	{
 	  perror(conf->pidfile);
 	  syslog(LOG_ERR,"%s: %m",conf->pidfile);
-	  return 1;
+	  return 0;
 	}
       else
 	{
