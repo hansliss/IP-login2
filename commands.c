@@ -31,9 +31,12 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf,
 void send_stat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 void dump_tstat(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 void do_check(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void del_client(int csocket, usernode thisuser, char *tmpbuf, usernode *users, struct config *conf);
 void del_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void del_host(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 void reload_chains(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 void printhelp(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
+void list_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 void dump_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 void reset(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
 void quit(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h);
@@ -64,6 +67,8 @@ void do_delblock(int csocket, namelist parms, usernode *users, struct config *co
 #define COMMAND_ADDBLOCK 16
 #define COMMAND_DELBLOCK 17
 #define COMMAND_CHECK 18
+#define COMMAND_DELUSER 19
+#define COMMAND_LIST 20
 #define COMMAND_UNKNOWN -1
 #define COMMAND_ARGS -2
 #define COMMAND_PERMS -3
@@ -83,15 +88,19 @@ struct commandtabnode {
     {"tstat",	COMMAND_TSTAT,	1, dump_tstat,
      "Dump traffic stats:\ttstat <file name>"},
     {"check",	COMMAND_CHECK,	1, do_check,
-     "Check:\t\t\tcheck <address>"},
-    {"del",	COMMAND_DEL,	1, del_user,
+     "Check:\t\tcheck <address>"},
+    {"del",	COMMAND_DEL,	1, del_host,
      "Delete an address:\tdel <address>"},
+    {"deluser",	COMMAND_DELUSER,	1, del_user,
+     "Delete a user:\tdeluser <user>"},
     {"reload",	COMMAND_RELOAD,	0, reload_chains,
-     "Reload chains:\t\treload"},
+     "Reload chains:\treload"},
     {"help",	COMMAND_HELP,	0, printhelp,
      "Get help:\t\thelp"},
     {"dump",	COMMAND_DUMP,	0, dump_state,
-     "Dump all info:\t\tdump"},
+     "Dump all info:\tdump"},
+    {"list",    COMMAND_LIST,   0, list_state,
+     "List all clients:\tlist"},
     {"reset",	COMMAND_RESET,	0, reset,
      "Reset state:\t\treset"},
     {"quit",	COMMAND_QUIT,	0, quit,
@@ -205,7 +214,7 @@ void do_load_state(int csocket, char *filename, usernode *users,
 		      if (splitstring(chainstring, ',', &chains)>0)
 			{
 			  if ((ifindex=find_interface(&address,
-						       &source_address,
+						      &source_address,
 						      tmpbuf, sizeof(tmpbuf)))<0)
 			    {
 			      freenamelist(&chains);
@@ -226,8 +235,8 @@ void do_load_state(int csocket, char *filename, usernode *users,
 				       sizeof(source_address));
 			      
 			      if (!addUser(users,nstring,NULL,type,&address,
-					      ifindex, tmpbuf, &source_address,chains,
-					      added, accounting_handle))
+					   ifindex, tmpbuf, &source_address,chains,
+					   added, accounting_handle))
 				{
 				  freenamelist(&chains);
 				  syslog(LOG_ERR,"loadstate: addUser failed");
@@ -454,6 +463,28 @@ void send_single_stat(int csocket, usernode thisnode, HLCRYPT_HANDLE h)
   hlcrypt_Send(csocket, tmpbuf, h);
 }
 
+void send_single_stat_one(int csocket, usernode thisnode, HLCRYPT_HANDLE h)
+{
+  static char tmpbuf[BUFSIZE];
+  int offset = 0;
+  
+  offset += sprintf(tmpbuf+offset, "Account: %.64s ", thisnode->account);
+  offset += sprintf(tmpbuf+offset, "Address: %.64s ", inet_ntoa(thisnode->address));
+
+  switch (thisnode->user_type)
+    {
+    case USER_TYPE_PING:
+      offset += sprintf(tmpbuf+offset, "Type: ping ");
+      break;
+    case USER_TYPE_ARPPING:
+      offset += sprintf(tmpbuf+offset, "Type: arpping ");
+      break;
+    default:
+    }
+  offset += sprintf(tmpbuf+offset, "Miss/Recv: %d/%d ", thisnode->missed, thisnode->hits);
+  hlcrypt_Send(csocket, tmpbuf, h);
+}
+
 void check_flood(usernode user, struct config *conf)
 {
   time_t now;
@@ -553,7 +584,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf,
 		    {
 		      if ((type==USER_TYPE_PING) &&
 			  (conf->defaultping.ping_source.sin_addr.s_addr!=INADDR_ANY))
-			  memcpy(&(source_address), &(conf->defaultping.ping_source.sin_addr),
+			memcpy(&(source_address), &(conf->defaultping.ping_source.sin_addr),
 			       sizeof(source_address));
 
 		      syslog(LOG_NOTICE, 
@@ -565,9 +596,9 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf,
 		      /*		      syslog(LOG_NOTICE, "Using %s as source address", inet_ntoa(source_address));*/
 		      /* Add the user to the list */
 		      if (!addUser(users, parms->next->name, NULL, type,
-				      &user_address, ifindex, tmpbuf,
-				      &source_address, chains, time(NULL),
-				      conf->accounting_handle))
+				   &user_address, ifindex, tmpbuf,
+				   &source_address, chains, time(NULL),
+				   conf->accounting_handle))
 			{
 			  freenamelist(&chains);
 			  hlcrypt_Send(csocket,"1", h);
@@ -728,21 +759,55 @@ void do_check(int csocket, namelist parms, usernode *users, struct config *conf,
     }
 }
 
+/* used by del_user() and del_host() */
+void del_client(int csocket, usernode thisuser, char *tmpbuf, usernode *users, struct config *conf)
+{
+  namelist tmplist;
+  time_t elapsed;
+  static char tmpbuf2[BUFSIZE];
+
+  tmplist=thisuser->filter_chains;
+  while (tmplist)
+    {
+      fchain_delrule(thisuser->address, tmplist->name);
+      tmplist=tmplist->next;
+    }
+  time(&elapsed);
+  elapsed-=thisuser->added;
+  
+  strcpy(tmpbuf2, ctime(&(thisuser->added)));
+  chop(tmpbuf2);
+
+  syslog(LOG_NOTICE, "Del: deleting %s, %s after %02d.%02d.%02d. Logged in %s. %u responses received",
+	 tmpbuf,
+	 thisuser->account,
+	 (int)(elapsed/3600),
+	 (int)(elapsed%3600)/60,
+	 (int)(elapsed%60),
+	 tmpbuf2,
+	 thisuser->hits
+	 );
+
+  if (strlen(conf->stat_blockchain) && thisuser->block_installed)
+    fchain_delrule(thisuser->address, conf->stat_blockchain);
+
+  delUser(users, &thisuser->address, conf->accounting_handle);
+}
+
 /*
   Command: DEL
 
   Delete a user from our list and remove it from the filter chains.
   This command accepts hostnames or IP adresses.
   */
-void del_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+void del_host(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
 {
   struct in_addr user_address;
-  static char tmpbuf[BUFSIZE], tmpbuf2[BUFSIZE];
+  static char tmpbuf[BUFSIZE];
   usernode thisuser;
-  namelist tmplist;
-  time_t elapsed;
+
   syslog(LOG_NOTICE, "Command: del");
-  mymalloc_pushcontext("del_user()");
+  mymalloc_pushcontext("del_host()");
   /* Convert the given user reference to an IP address */
   if (makeaddress(parms->name, &user_address))
     {
@@ -750,44 +815,18 @@ void del_user(int csocket, namelist parms, usernode *users, struct config *conf,
       strncpy(tmpbuf, inet_ntoa(user_address), BUFSIZE);
       tmpbuf[BUFSIZE-1]='\0';
       if (strcmp(parms->name,tmpbuf))
-	sprintf(tmpbuf,"%s/%s",parms->name,inet_ntoa(user_address));
+	snprintf(tmpbuf, BUFSIZE-1, "%s/%s",parms->name,inet_ntoa(user_address));
 
       /* Try to find the user in our list */
       if (!(thisuser=findUser(*users, &user_address)))
 	{
-	  syslog(LOG_NOTICE, "Del: user %s is unknown",tmpbuf);
+	  syslog(LOG_NOTICE, "Del: host %s is unknown",tmpbuf);
 	  hlcrypt_Send(csocket,"1", h);
 	  hlcrypt_Send(csocket,"Not there", h);
 	}
       else /* findUser */
 	{
-	  /* Remove all the filter chain rules for this user */
-	  tmplist=thisuser->filter_chains;
-	  while (tmplist)
-	    {
-	      fchain_delrule(thisuser->address, tmplist->name);
-	      tmplist=tmplist->next;
-	    }
-	  time(&elapsed);
-	  elapsed-=thisuser->added;
-	  
-	  strcpy(tmpbuf2, ctime(&(thisuser->added)));
-	  chop(tmpbuf2);
-
-	  syslog(LOG_NOTICE, "Del: deleting %s, %s after %02d.%02d.%02d. Logged in %s. %u responses received",
-		 tmpbuf,
-		 thisuser->account,
-		 (int)(elapsed/3600),
-		 (int)(elapsed%3600)/60,
-		 (int)(elapsed%60),
-		 tmpbuf2,
-		 thisuser->hits
-		 );
-
-	  if (strlen(conf->stat_blockchain) && thisuser->block_installed)
-	    fchain_delrule(thisuser->address, conf->stat_blockchain);
-
-	  delUser(users,&user_address, conf->accounting_handle);
+	  del_client(csocket, thisuser, tmpbuf, users, conf);
 	  hlcrypt_Send(csocket,"1", h);
 	  hlcrypt_Send(csocket,"OK", h);
 	}
@@ -798,6 +837,49 @@ void del_user(int csocket, namelist parms, usernode *users, struct config *conf,
       hlcrypt_Send(csocket,"1", h);
       hlcrypt_Send(csocket,"del: Unknown address", h);
     }
+  mymalloc_popcontext();
+}
+
+/*
+  Command: DELUSER
+
+  Delete a user from our list and remove it from the filter chains.
+  This command accepts hostnames or IP adresses.
+  */
+void del_user(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+{
+  static char tmpbuf[BUFSIZE];
+  usernode thisuser;
+  int there = 0;
+
+  syslog(LOG_NOTICE, "Command: deluser");
+  mymalloc_pushcontext("del_user()");
+
+  for (;;)
+    {
+      /* Try to find the user in our list */
+      if (!(thisuser=findUser_account(*users, parms->name)))
+        {
+	  if (there == 1)
+	    break;
+
+          syslog(LOG_NOTICE, "Deluser: user %s is unknown", parms->name);
+          hlcrypt_Send(csocket,"1", h);
+          hlcrypt_Send(csocket,"Not there", h);
+          mymalloc_popcontext();
+          return;
+        }
+      else /* findUserName */
+        {
+	  there = 1;
+          tmpbuf[BUFSIZE-1]='\0';
+          snprintf(tmpbuf, BUFSIZE-1, "%s", thisuser->account);
+          /* Remove all the filter chain rules for this user */
+          del_client(csocket, thisuser, tmpbuf, users, conf);
+        }
+    }
+  hlcrypt_Send(csocket,"1", h);
+  hlcrypt_Send(csocket,"OK", h);
   mymalloc_popcontext();
 }
 
@@ -874,6 +956,37 @@ void dump_state(int csocket, namelist parms, usernode *users, struct config *con
     {
       hlcrypt_Send(csocket,"----------------------------", h);
       send_single_stat(csocket, thisnode, h);
+      thisnode=thisnode->next;
+    }
+}
+
+/*
+  Command: LIST
+
+  'list' all the info on all the nodes to the client.
+  */
+void list_state(int csocket, namelist parms, usernode *users, struct config *conf, HLCRYPT_HANDLE h)
+{
+  static char tmpbuf[BUFSIZE];
+  int i=0;
+  usernode thisnode=*users;
+  syslog(LOG_NOTICE, "Command: list");
+  /* Count the users */
+  while (thisnode)
+    {
+      i++;
+      thisnode=thisnode->next;
+    }
+
+  /* Send the number of strings to the client */
+  sprintf(tmpbuf,"%d",i);
+  hlcrypt_Send(csocket, tmpbuf, h);
+
+  /* ...and then send all the data */
+  thisnode=*users;
+  while (thisnode)
+    {
+      send_single_stat_one(csocket, thisnode, h);
       thisnode=thisnode->next;
     }
 }
@@ -988,26 +1101,26 @@ void do_addblock(int csocket, namelist parms, usernode *users, struct config *co
       if (strcmp(parms->name,tmpbuf))
 	sprintf(tmpbuf,"%s/%s",parms->name,inet_ntoa(user_address));
 
-	  /* Convert the list of chains to a linked list */
-	  if (splitstring(parms->next->name,',',&chains)>0)
+      /* Convert the list of chains to a linked list */
+      if (splitstring(parms->next->name,',',&chains)>0)
+	{
+	  /* Add the IP adress of this user to each of the
+	     filter chains requested */
+	  tmplist=chains;
+	  while (tmplist)
 	    {
-	      /* Add the IP adress of this user to each of the
-		 filter chains requested */
-	      tmplist=chains;
-	      while (tmplist)
-		{
-		  fchain_addrule(user_address,tmplist->name);
-		  tmplist=tmplist->next;
-		}
-	      hlcrypt_Send(csocket,"1", h);
-	      hlcrypt_Send(csocket,"OK", h);
+	      fchain_addrule(user_address,tmplist->name);
+	      tmplist=tmplist->next;
 	    }
-	  else /* splitstring */
-	    {
-	      syslog(LOG_NOTICE, "Addblock: no chains specified for user %s",tmpbuf);
-	      hlcrypt_Send(csocket,"1", h);
-	      hlcrypt_Send(csocket,"addblock: failed.", h);
-	    }
+	  hlcrypt_Send(csocket,"1", h);
+	  hlcrypt_Send(csocket,"OK", h);
+	}
+      else /* splitstring */
+	{
+	  syslog(LOG_NOTICE, "Addblock: no chains specified for user %s",tmpbuf);
+	  hlcrypt_Send(csocket,"1", h);
+	  hlcrypt_Send(csocket,"addblock: failed.", h);
+	}
     }
   else /* makeaddress */
     {
@@ -1040,26 +1153,26 @@ void do_delblock(int csocket, namelist parms, usernode *users, struct config *co
       if (strcmp(parms->name,tmpbuf))
 	sprintf(tmpbuf,"%s/%s",parms->name,inet_ntoa(user_address));
 
-	  /* Convert the list of chains to a linked list */
-	  if (splitstring(parms->next->name,',',&chains)>0)
+      /* Convert the list of chains to a linked list */
+      if (splitstring(parms->next->name,',',&chains)>0)
+	{
+	  /* Add the IP adress of this user to each of the
+	     filter chains requested */
+	  tmplist=chains;
+	  while (tmplist)
 	    {
-	      /* Add the IP adress of this user to each of the
-		 filter chains requested */
-	      tmplist=chains;
-	      while (tmplist)
-		{
-		  fchain_delrule(user_address,tmplist->name);
-		  tmplist=tmplist->next;
-		}
-	      hlcrypt_Send(csocket,"1", h);
-	      hlcrypt_Send(csocket,"OK", h);
+	      fchain_delrule(user_address,tmplist->name);
+	      tmplist=tmplist->next;
 	    }
-	  else /* splitstring */
-	    {
-	      syslog(LOG_NOTICE, "Delblock: no chains specified for user %s",tmpbuf);
-	      hlcrypt_Send(csocket,"1", h);
-	      hlcrypt_Send(csocket,"delblock: failed.", h);
-	    }
+	  hlcrypt_Send(csocket,"1", h);
+	  hlcrypt_Send(csocket,"OK", h);
+	}
+      else /* splitstring */
+	{
+	  syslog(LOG_NOTICE, "Delblock: no chains specified for user %s",tmpbuf);
+	  hlcrypt_Send(csocket,"1", h);
+	  hlcrypt_Send(csocket,"delblock: failed.", h);
+	}
     }
   else /* makeaddress */
     {
