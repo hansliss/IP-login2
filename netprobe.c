@@ -462,7 +462,7 @@ int main(int argc, char *argv[])
                          0, NULL, NULL, NULL};
   int idx;
   int i, t, r, j;
-  unsigned long repeat_count=1, interdelay=50;
+  unsigned long repeat_count=1, interdelay=10000;
   int o;
   static char typetext[32], ip[64];
   static char tmpbuf[1024], tmpbuf2[1024];
