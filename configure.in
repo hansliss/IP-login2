@@ -1,0 +1,124 @@
+AC_INIT(main.c)
+PACKAGE=iplogin2
+VERSION=2.2.5
+AC_CONFIG_HEADER(autoconfig.h)
+AC_PROG_CC
+AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE")
+AC_DEFINE_UNQUOTED(VERSION, "$VERSION")
+AC_SUBST(PACKAGE)
+AC_SUBST(VERSION)
+
+dnl Checks for programs.
+AC_PROG_CC
+if test $CC = "gcc"; then
+	CFLAGS="$CFLAGS -Wall"
+fi
+AC_PROG_INSTALL
+AC_PROG_LN_S
+
+AC_CHECK_HEADER(openssl/sha.h, ,[opensslpath="/usr/local/ssl"])
+
+dnl --with-openssl
+
+AC_ARG_WITH(openssl,
+[  --with-openssl=DIR      point out where OpenSSL is installed],
+[case "$withval" in
+        no) opensslpath=""
+                ;;
+        yes)
+                ;;
+        *)
+                opensslpath="$withval"
+                ;;
+esac
+])dnl
+
+AC_SUBST(opensslpath)dnl
+
+if test ! -z "$opensslpath"; then
+        CFLAGS="$CFLAGS -I$opensslpath/include"
+        CPPFLAGS="$CPPFLAGS -I$opensslpath/include"
+        LDFLAGS="$LDFLAGS -L$opensslpath/lib"
+fi
+
+dnl --with-iptables-sources
+
+iptspath="./iptables-1.2.5"
+
+AC_ARG_WITH(iptables-sources,
+[  --with-iptables-sources=DIR      point out where the sources for iptables (>1.2.5) is installed],
+[case "$withval" in
+        no) iptspath=""
+                ;;
+        yes)
+                ;;
+        *)
+                iptspath="$withval"
+                ;;
+esac
+])dnl
+
+AC_SUBST(iptspath)dnl
+
+dnl Checks for libraries.
+AC_CHECK_LIB(div,main)
+AC_CHECK_LIB(crypto,main)
+AC_CHECK_LIB(wrap,main)
+AC_CHECK_LIB(varlist,main)
+AC_CHECK_LIB(conffile,main)
+AC_CHECK_LIB(hlcrypt,main)
+AC_CHECK_LIB(resolv,main)
+AC_CHECK_LIB(dl,main)
+
+AC_CHECK_HEADER(openssl/sha.h, ,[opensslpath="/usr/local/ssl"])
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(\
+	arpa/inet.h\
+	asm/types.h\
+	conffile.h\
+	ctype.h\
+	divlib.h\
+	dlfcn.h\
+	errno.h\
+	fcntl.h\
+	hlcrypt.h\
+	iplogin2.h\
+	iptables.h\
+	limits.h\
+	linux/sockios.h\
+	netdb.h\
+	netinet/in.h\
+	netinet/ip.h\
+	netinet/ip_icmp.h\
+	pwd.h\
+	signal.h\
+	stdarg.h\
+	stdio.h\
+	stdlib.h\
+	string.h\
+	sys/ioctl.h\
+	sys/socket.h\
+	sys/time.h\
+	sys/timeb.h\
+	sys/types.h\
+	sys/uio.h\
+	sys/wait.h\
+	syslog.h\
+	tcpd.h\
+	time.h\
+	unistd.h\
+	varlist.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+
+dnl Checks for library functions.
+AC_TYPE_SIGNAL
+AC_LIBRARY_NET
+AC_LIBRARY_STD
+
+##AC_CHECK_FUNCS()
+
+AC_OUTPUT(Makefile)
