@@ -458,7 +458,7 @@ int main(int argc, char *argv[])
                          IPPROTO_TCP,
                          0, NULL, NULL, NULL};
   int idx;
-  int i, t, r;
+  int i, t, r, j;
   static char typetext[32], ip[64];
   static char tmpbuf[1024], tmpbuf2[1024];
   s.s_addr=INADDR_ANY;
@@ -505,10 +505,12 @@ int main(int argc, char *argv[])
 	      switch(t)
 		{
 		case USER_TYPE_ARPPING:
-		  do_arpprobe(idx, src, dst);
+		  for (j=0; j<10; j++)
+		    do_arpprobe(idx, src, dst);
 		  break;
 		case USER_TYPE_PING:
-		  do_icmpprobe(src, dst);
+		  for (j=0; j<10; j++)
+		    do_icmpprobe(src, dst);
 		  break;
 		}
 	    }
