@@ -32,7 +32,6 @@
 
 #define BUFSIZE 8192
 
-#define COUNTER_INTERVAL (2*60)
 #define GC_PERIOD 2
 #define LOOP_SLEEP 200
 #define MISSSTATPERIOD 1
@@ -136,6 +135,9 @@ void retrieve_counters(struct config *conf, usernode users)
 {
   counternode counters=NULL, tmpcounter;
   usernode thisuser=users;
+  unsigned int interval;
+  time_t logged_in;
+
   if (!strlen(conf->counterchain))
     return;
   while (thisuser)
@@ -168,8 +170,30 @@ void retrieve_counters(struct config *conf, usernode users)
 	    {
 	      if (!memcmp(&(thisuser->address), &(tmpcounter->address), sizeof(tmpcounter->address)))
 		{
-		  thisuser->rxkbps=8*((long double)(tmpcounter->rxcounter - thisuser->rxcounter)/1024.0)/COUNTER_INTERVAL;
-		  thisuser->txkbps=8*((long double)(tmpcounter->txcounter - thisuser->txcounter)/1024.0)/COUNTER_INTERVAL;
+		  interval = conf->counter_interval;
+                 
+		  time(&logged_in);
+		  logged_in-=thisuser->added;
+
+		  if ((unsigned int)logged_in < interval)
+		    interval = (unsigned int)logged_in;
+
+		  if (interval == 0)
+		    interval = 1;
+
+		  thisuser->rxkbps=8*((long double)(tmpcounter->rxcounter - thisuser->rxcounter)/1024.0)/interval;
+		  thisuser->txkbps=8*((long double)(tmpcounter->txcounter - thisuser->txcounter)/1024.0)/interval;
+
+		  if (thisuser->rxcounter == tmpcounter->rxcounter)
+		    thisuser->rxidle += interval;
+		  else
+		    thisuser->rxidle = 0;
+
+		  if (thisuser->txcounter == tmpcounter->txcounter)
+		    thisuser->txidle += interval;
+		  else
+		    thisuser->txidle = 0;
+
 		  thisuser->rxcounter=tmpcounter->rxcounter;
 		  thisuser->txcounter=tmpcounter->txcounter;
 		}
@@ -372,6 +396,44 @@ void savestate(int s)
     signal(SIGUSR1, savestate);
 }
 
+void removeuser(usernode *users, usernode user, struct config *conf, char *reason)
+{
+  char tmpbuf[BUFSIZE];
+  namelist tmplist;
+  time_t elapsed;
+
+  /* Remove this user from all filter chains */
+  tmplist=user->filter_chains;
+  while (tmplist)
+    {
+      fchain_delrule(user->address, tmplist->name);
+      tmplist=tmplist->next;
+    }
+  /* Tell the world! */
+  time(&elapsed);
+  elapsed-=user->added;
+
+  strcpy(tmpbuf, ctime(&(user->added)));
+  chop(tmpbuf);
+
+  syslog(LOG_NOTICE, "%s: deleting %s, %s after %02d.%02d.%02d. Logged in %s. %u responses received",
+	 reason,
+	 inet_ntoa(user->address),
+	 user->account,
+	 (int)(elapsed/3600),
+	 (int)(elapsed%3600)/60,
+	 (int)(elapsed%60),
+	 tmpbuf,
+	 user->hits
+	 );
+
+  if (strlen(conf->stat_blockchain) && user->block_installed)
+    fchain_delrule(user->address, conf->stat_blockchain);
+
+  /* ..and remove the user from our list */
+  delUser(users,&user->address, conf->accounting_handle);
+}
+
 /* See the header file */
 int mainloop(struct config *conf, int command_server_socket)
 {
@@ -393,14 +455,14 @@ int mainloop(struct config *conf, int command_server_socket)
 
   time_t stat_gc_last=0;
 
-  time_t now=0, lastgc=0, elapsed;
+  time_t now=0, lastgc=0;
   struct timeb last_accept={0,0}, lastcycle, thiscycle;
 
   socketnode allsockets=NULL, tmpsock;
 
-  static char tmpbuf[BUFSIZE], tmpbuf2[BUFSIZE];
+  static char tmpbuf[BUFSIZE];
   namelist tmplist, tmplist2;
-  usernode tmpuser, tmpuser2;
+  usernode tmpuser, tmpuser2, tmpuser3;
 
 #ifdef STATS
   FILE *statfile=fopen("iplogin.statistics","w");
@@ -428,7 +490,7 @@ int mainloop(struct config *conf, int command_server_socket)
 
   /* If 'loadfile' is non-empty, load state from the file */
   if (strlen(conf->loadfile)>0)
-    do_load_state(-1, conf->loadfile, &users, &(conf->defaultping.ping_source), conf->accounting_handle, NULL);
+    do_load_state(-1, conf, conf->loadfile, &users, &(conf->defaultping.ping_source), conf->accounting_handle, NULL);
 
   /* Prepare for saving functionality - just save the filename */
   savestate_helper(0, conf->loadfile, &users, &allsockets, conf->accounting_handle);
@@ -441,7 +503,9 @@ int mainloop(struct config *conf, int command_server_socket)
       alarm(alarmtime);
     }
   ftime(&lastcycle);
-  
+
+  time(&counters_last);
+
   while (!ready)
     {
       ftime(&thiscycle);
@@ -489,94 +553,68 @@ int mainloop(struct config *conf, int command_server_socket)
 #if 0
       if (((unsigned long)(now-lastgc)) > GC_PERIOD)
 #else
-      if (1)
+	if (1)
 #endif
-	{
-	  while (tmpuser)
-	    {
-	      /* Check first if we consider the last PING missed */
-	      if (tmpuser->last_checked_send != tmpuser->last_sent)
-		{
-		  if (tmpuser->last_received <
-		      (tmpuser->last_sent - conf->defaultping.missdiff))
-		    {
-		      tmpuser->missed++;
-		      tmpuser->last_checked_send=tmpuser->last_sent;
-		      missstat_count++;
-		    }
-		  else
-		    {
-		      if (tmpuser->last_received!=0)
-			{
-			  tmpuser->missed=0;
-			  tmpuser->hits++;
-			  tmpuser->last_checked_send=tmpuser->last_sent;
-			}
-		    }
-		}
+	  {
+	    while (tmpuser)
+	      {
+		/* Check first if we consider the last PING missed */
+		if (tmpuser->last_checked_send != tmpuser->last_sent)
+		  {
+		    if (tmpuser->last_received <
+			(tmpuser->last_sent - conf->defaultping.missdiff))
+		      {
+			tmpuser->missed++;
+			tmpuser->last_checked_send=tmpuser->last_sent;
+			missstat_count++;
+		      }
+		    else
+		      {
+			if (tmpuser->last_received!=0)
+			  {
+			    tmpuser->missed=0;
+			    tmpuser->hits++;
+			    tmpuser->last_checked_send=tmpuser->last_sent;
+			  }
+		      }
+		  }
 
-	      /* If missed one too many times.. */
-	      if (tmpuser->missed > conf->defaultping.maxmissed)
-		{
-		  missstat_count-=tmpuser->missed;
-		  if (missstat_count<0)
-		    missstat_count=0;
-		  /* Remove this user from all filter chains */
-		  tmplist=tmpuser->filter_chains;
-		  while (tmplist)
-		    {
-		      fchain_delrule(tmpuser->address, tmplist->name);
-		      tmplist=tmplist->next;
-		    }
-		  /* Tell the world! */
-		  time(&elapsed);
-		  elapsed-=tmpuser->added;
-	      
-		  strcpy(tmpbuf2, ctime(&(tmpuser->added)));
-		  chop(tmpbuf2);
-	      
-		  syslog(LOG_NOTICE, "Timeout: deleting %s, %s after %02d.%02d.%02d. Logged in %s. %u responses received",
-			 inet_ntoa(tmpuser->address),
-			 tmpuser->account,
-			 (int)(elapsed/3600),
-			 (int)(elapsed%3600)/60,
-			 (int)(elapsed%60),
-			 tmpbuf2,
-			 tmpuser->hits
-			 );
+		/* If missed one too many times.. */
+		if (tmpuser->missed > conf->defaultping.maxmissed)
+		  {
+		    missstat_count-=tmpuser->missed;
+		    if (missstat_count<0)
+		      missstat_count=0;
 
-		  if (strlen(conf->stat_blockchain) && tmpuser->block_installed)
-		    fchain_delrule(tmpuser->address, conf->stat_blockchain);
+		    removeuser(&users, tmpuser, conf, "Timeout");
 
-		  /* ..and remove the user from our list */
-		  delUser(&users,&tmpuser->address, conf->accounting_handle);
-		  /* ..then start over instead of trying to continue
-		     in the modified list */
-		  tmpuser=users;
-		  scount=0;
-		}
-	      else /* if (..missed..) */
-		{
-		  if (strlen(conf->stat_blockchain) && (tmpuser->block_installed) &&
-		      ((now - tmpuser->block_installed) > conf->stat_blocktime))
-		    {
-		      fchain_delrule(tmpuser->address, conf->stat_blockchain);
-		      tmpuser->block_installed=0;
-		      tmpuser->statmit_count=0;
-		    }
-		  tmpuser=tmpuser->next;
-		  scount++;
-		}
-	    } /* while (tmpuser) */
-	  if (scount!=lastcount)
-	    {
-	      recalc(&(conf->defaultping), conf->logout_timeout, scount);
-	      lastcount=scount;
-	    }
+		    /* ..then start over instead of trying to continue
+		       in the modified list */
+		    tmpuser=users;
+		    scount=0;
+		  }
+		else /* if (..missed..) */
+		  {
+		    if (strlen(conf->stat_blockchain) && (tmpuser->block_installed) &&
+			((now - tmpuser->block_installed) > conf->stat_blocktime))
+		      {
+			fchain_delrule(tmpuser->address, conf->stat_blockchain);
+			tmpuser->block_installed=0;
+			tmpuser->statmit_count=0;
+		      }
+		    tmpuser=tmpuser->next;
+		    scount++;
+		  }
+	      } /* while (tmpuser) */
+	    if (scount!=lastcount)
+	      {
+		recalc(&(conf->defaultping), conf->logout_timeout, scount);
+		lastcount=scount;
+	      }
 	  
-	  /* ..and remember when we did this */
-	  lastgc=now;
-	} /* while (...GC_PERIOD...) */
+	    /* ..and remember when we did this */
+	    lastgc=now;
+	  } /* while (...GC_PERIOD...) */
 
       if (strlen(conf->stat_blockchain) && ((now - stat_gc_last) > conf->stat_blockgc))
 	{
@@ -593,10 +631,27 @@ int mainloop(struct config *conf, int command_server_socket)
 
 
 	}
-      if ((now - counters_last) > COUNTER_INTERVAL)
+      if (conf->counter_interval && (now - counters_last) > conf->counter_interval)
 	{
 	  retrieve_counters(conf, users);
 	  counters_last=now;
+
+	  tmpuser3=users;
+	  while (tmpuser3)
+	    {
+	      if (tmpuser3->idle_logout && ((conf->rxidle && tmpuser3->rxidle >= conf->rxidle)
+					    || (conf->txidle && tmpuser3->txidle >= conf->txidle)))
+		{
+		  removeuser(&users, tmpuser3, conf, "Idle");
+		  scount=0;
+		  recalc(&(conf->defaultping), conf->logout_timeout, scount);
+		  lastcount=scount;
+		  tmpuser3 = users;
+		  continue;
+		}
+
+	      tmpuser3=tmpuser3->next;
+	    }
 	}
 
       trace_msg("Sending requests");

@@ -51,7 +51,7 @@ ILCMD_OBJS=ilcmd.o
 
 NETPROBE_TARGET=netprobe
 NETPROBE_SOURCES=netprobe.c find_interface.c 
-NETPROBE_OBJS=netprobe.o find_interface.c
+NETPROBE_OBJS=netprobe.o find_interface.o
 
 LIBACCLIB=acclib_test.la
 LIBACCLIB_SRC=acclib_test.c

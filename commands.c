@@ -170,7 +170,7 @@ int do_reloadchains(usernode users)
    to trust it. If 'csocket' is not -1, we send replies to the client
    on the other end.
 */
-void do_load_state(int csocket, char *filename, usernode *users,
+void do_load_state(int csocket, struct config *conf, char *filename, usernode *users,
 		   struct sockaddr_in *ping_source, void *accounting_handle, HLCRYPT_HANDLE h)
 {
   FILE *dumpfile;
@@ -234,7 +234,7 @@ void do_load_state(int csocket, char *filename, usernode *users,
 				memcpy(&(source_address), &(ping_source->sin_addr),
 				       sizeof(source_address));
 			      
-			      if (!addUser(users,nstring,NULL,type,&address,
+			      if (!addUser(users,conf,nstring,NULL,type,&address,
 					   ifindex, tmpbuf, &source_address,chains,
 					   added, accounting_handle))
 				{
@@ -595,7 +595,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf,
 			     parms->next->next->name);	
 		      /*		      syslog(LOG_NOTICE, "Using %s as source address", inet_ntoa(source_address));*/
 		      /* Add the user to the list */
-		      if (!addUser(users, parms->next->name, NULL, type,
+		      if (!addUser(users, conf, parms->next->name, NULL, type,
 				   &user_address, ifindex, tmpbuf,
 				   &source_address, chains, time(NULL),
 				   conf->accounting_handle))
@@ -1011,7 +1011,7 @@ void load_state(int csocket, namelist parms, usernode *users, struct config *con
 {
   syslog(LOG_NOTICE, "Command: loadstate");
   do_reset(users, conf->accounting_handle);
-  do_load_state(csocket, parms->name, users, &(conf->defaultping.ping_source), conf->accounting_handle, h);
+  do_load_state(csocket, conf, parms->name, users, &(conf->defaultping.ping_source), conf->accounting_handle, h);
 }
 
 /*

@@ -5,6 +5,7 @@
 #include <time.h>
 #include <linux/if_arp.h>
 #include <hl.h>
+#include "config.h"
 
 /************* List handling code **************/
 
@@ -72,8 +73,14 @@ typedef struct susernode
   /* RX and TX counters */
   u_int64_t rxcounter, txcounter;
 
-  /* TX and TX kbits/s */
+  /* RX and TX kbits/s */
   unsigned int rxkbps, txkbps;
+
+  /* RX and TX idletime */
+  unsigned int rxidle, txidle;
+
+  /* User should be logged out when idle? */
+  unsigned int idle_logout;
 
   /* Link to next */
   struct susernode *next;
@@ -97,7 +104,7 @@ typedef struct susernode
   Note: This function does not check for duplicates. If a duplicate
   is created, the first one in the list will override any others.
   */
-usernode addUser(usernode *l, char *account, char *session_id, int user_type,
+usernode addUser(usernode *l, struct config *conf, char *account, char *session_id, int user_type,
 		       struct in_addr *address, int ifindex, char *ifname,
 		       struct in_addr *source, namelist chains, time_t added,
 		       void *accounting_handle);

@@ -89,6 +89,9 @@ int initialize(struct config *conf)
   struct in_addr my_inaddr;
   FILE *tmpfile;
   int syslog_facility;
+  namelist tmpidlehost=NULL, tmphosts=NULL, tmphosts2=NULL;
+  struct network *idlehost;
+  unsigned int netmask_cidr, splitnum;
 
   syslog_facility=DEFAULT_SYSLOG_FACILITY;
 
@@ -308,6 +311,70 @@ int initialize(struct config *conf)
     strncpy(conf->counterchain, tmpbuf2, sizeof(conf->counterchain));
   else
     conf->counterchain[0]='\0';
+
+  if (conf_getvar(conf->conffile,"server",conf->servername,"counterinterval",tmpbuf2,BUFSIZE))
+    sscanf(tmpbuf2, "%i", &(conf->counter_interval));
+  else
+    conf->counter_interval = 0;
+
+  if (conf_getvar(conf->conffile,"server",conf->servername,"rxidle",tmpbuf2,BUFSIZE))
+    sscanf(tmpbuf2, "%i", &(conf->rxidle));
+  else
+    conf->rxidle = 0;
+
+  if (conf_getvar(conf->conffile,"server",conf->servername,"txidle",tmpbuf2,BUFSIZE))
+    sscanf(tmpbuf2, "%i", &(conf->txidle));
+  else
+    conf->txidle = 0;
+
+  conf->idlenetworks = NULL;
+  if (conf_getvar(conf->conffile,"server",conf->servername,"idlehosts",tmpbuf2,BUFSIZE))
+    {
+      splitstring(tmpbuf2, ',', &tmphosts);
+      tmphosts2 = tmphosts;
+      while (tmphosts2)
+	{
+	  tmpidlehost=NULL;
+	  splitnum = splitstring(tmphosts2->name, '/', &tmpidlehost);
+	  if (splitnum == 1 || splitnum == 2)
+	    {
+	      idlehost = (struct network *)malloc(sizeof(struct network));
+	      if (!idlehost)
+		{
+		  freenamelist(&tmpidlehost);
+		  break;
+		}
+
+	      inet_aton(tmpidlehost->name, &my_inaddr);
+	      idlehost->network = ntohl(my_inaddr.s_addr);
+	      if (splitnum == 2)
+		{
+		  if (strchr(tmpidlehost->next->name, '.'))
+		    {
+		      inet_aton(tmpidlehost->next->name, &my_inaddr);
+		      idlehost->netmask = ntohl(my_inaddr.s_addr);
+		    }
+		  else
+		    {
+		      sscanf(tmpidlehost->next->name, "%i", &(netmask_cidr));
+		      idlehost->netmask = 0;
+		      for (i = 1; i <= netmask_cidr; i++)
+			idlehost->netmask |= 1<<(32-i);
+		    }
+		}
+	      else
+		{
+		  idlehost->netmask = 0xffffffff;
+		}
+
+	      idlehost->next = conf->idlenetworks;
+	      conf->idlenetworks = idlehost;
+	    }
+	  freenamelist(&tmpidlehost);
+	  tmphosts2 = tmphosts2->next;
+	}
+      freenamelist(&tmphosts);
+    }
 
   if (conf_getvar(conf->conffile,"server",conf->servername,"savetime",tmpbuf2,BUFSIZE))
     sscanf(tmpbuf2, "%i", &alarmtime);

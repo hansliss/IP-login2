@@ -6,6 +6,13 @@
 
 #define CONFBSIZE 8192
 
+struct network
+{
+  struct network *next;
+  unsigned int network;
+  unsigned int netmask;
+};
+
 /* Ping configuration parameters for one interface
   'pinginterval' : Microseconds between pings
   'min_pinginterval' : Min ping interval in microseconds
@@ -64,6 +71,9 @@ struct config
   int stat_blocktime; /*  900 */
   int stat_blockgc; /* 3600 */
   char counterchain[CONFBSIZE]; /* For example "users" */
+  unsigned int rxidle, txidle;
+  struct network *idlenetworks;
+  unsigned int counter_interval;
 };
 
 char *params(struct config *conf);

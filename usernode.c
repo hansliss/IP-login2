@@ -12,7 +12,7 @@
   We try to keep the list in address order, strictly for cosmetical
   reasons.
   */
-usernode addUser(usernode *l, char *account, char *session_id,
+usernode addUser(usernode *l, struct config *conf, char *account, char *session_id,
 		 int user_type, struct in_addr *address,
 		 int ifindex, char *ifname, struct in_addr *source,
 		 namelist chains,
@@ -20,6 +20,9 @@ usernode addUser(usernode *l, char *account, char *session_id,
 {
   usernode new_user;
   struct timeb tb;
+  unsigned int useraddress;
+  struct network *tmpidlehost;
+
   if (!(*l) || ((*l)->address.s_addr > address->s_addr))
     {
       if (!(new_user=(usernode)malloc(sizeof(*new_user))))
@@ -57,6 +60,21 @@ usernode addUser(usernode *l, char *account, char *session_id,
 	      new_user->txcounter=0;
 	      new_user->rxkbps=0;
 	      new_user->txkbps=0;
+	      new_user->rxidle=0;
+	      new_user->txidle=0;
+	      new_user->idle_logout=0;
+
+	      tmpidlehost = conf->idlenetworks;
+	      while (tmpidlehost && !new_user->idle_logout)
+		{
+		  useraddress = ntohl(new_user->address.s_addr);
+
+		  if ((useraddress & tmpidlehost->netmask) == (tmpidlehost->network & tmpidlehost->netmask))
+		    new_user->idle_logout=1;
+
+		  tmpidlehost = tmpidlehost->next;
+		}
+
 	      new_user->block_installed=0;
 	      new_user->ll_address_set=-1;
 	      new_user->next=(*l);
@@ -79,8 +97,8 @@ usernode addUser(usernode *l, char *account, char *session_id,
 	}
     }
   else
-    return addUser(&((*l)->next), account, session_id, user_type, address,
-		      ifindex, ifname, source, chains, added, accounting_handle);
+    return addUser(&((*l)->next), conf, account, session_id, user_type, address,
+		   ifindex, ifname, source, chains, added, accounting_handle);
 }
 
 /*

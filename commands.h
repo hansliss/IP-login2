@@ -10,7 +10,7 @@
   Prerequisites (apart from the obvious):
   * syslog() is used so openlog() before calling this
   */
-void do_load_state(int csocket, char *filename, usernode *users,
+void do_load_state(int csocket, struct config *conf, char *filename, usernode *users,
 		   struct sockaddr_in *ping_source, void *accounting_handle, HLCRYPT_HANDLE h);
 
 /*
