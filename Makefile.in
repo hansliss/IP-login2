@@ -14,7 +14,8 @@ CFLAGS = -I. @CFLAGS@ $(DEFINES)
 LDFLAGS = @LDFLAGS@ -L/usr/local/lib -L/usr/local/ssl/lib
 LIBS = -lhl @LIBS@
 INSTALL = @INSTALL@
-LOCAL_TARGETS=@LOCAL_TARGETS@
+HLLIB=@HLLIB@
+HLLIB_INCLUDE=@HLLIB_INCLUDE@
 LIBHL_DIR=@LIBHL_DIR@
 libhlpath=@libhlpath@
 prefix = @prefix@
@@ -72,13 +73,14 @@ IPT=$(IPTFLAGS) $(IPTLDLIB)
 
 CFLAGS+=-I$(IPTINCDIR) -DIPTVERSION=\"$(IPTVERSION)\"
 
-all: $(LOCAL_TARGETS) $(TARGETS)
+all: $(HLLIB) $(TARGETS)
 
 install: all
 	$(top_srcdir)/mkinstalldirs $(bindir) $(libdir) $(includedir) $(sysconfdir)
 	$(INSTALL) -b $(PROGRAMS) $(bindir)/
 	./libtool $(INSTALL) -b $(LIBRARIES) $(libdir)/
 	$(INSTALL) -b -m0644 $(LIB_HEADER) $(includedir)/
+	if test ! -z "$(HLLIB)"; then $(INSTALL) -b $(HLLIB) $(libdir)/; $(INSTALL) -b -m0644 $(HLLIB_INCLUDE) $(includedir); fi
 	if test ! -f $(sysconfdir)/$(IPLOGIN2_CONFFILE); then install -m0600 $(IPLOGIN2_CONFFILE).inst $(sysconfdir)/$(IPLOGIN2_CONFFILE); else echo Preserving existing $(sysconfdir)/$(IPLOGIN2_CONFFILE); fi
 	./libtool --mode=finish $(libdir)
 	

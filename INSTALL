@@ -1,33 +1,29 @@
-Don't try to build this on non-Linux systems. It will not work.
+Simple installation:
 
-You need sources for iptables to compile this, because the build
-process will link the target statically to the iptables libraries,
-which have to be built non-shared. The Makefile can do this for you,
-but you will have to 'make clean' in you iptables directory and point
-it out to 'configure'. IP-login2 handles at least versions 1.2.5 - 1.2.7a
-and the configure script will try to figure out which version of iptables
-you have.
-
-./configure --with-iptables-source=/usr/local/src/iptables-1.2.5
-
-You will also need to have full permissions in the iptables source
-directory, obviously.
-
-You need to have OpenSSL libraries installed to compile iplogin2, too.
-If they're not in a standard place, you can point configure to them,
-with '--with-openssl=<dir>'.
-
-To get iplogin2 up and running you need a configuration file. Edit
-a copy of iplogin2.conf.sample to suit your needs and save it as
-iplogin2.conf.
-You will also need to add a service definition to /etc/services,
-something like this:
-	iplogin2	4711/tcp
-
-It is a good idea to start iplogin2 from init (8), and this can
-be accomplished by adding a line to /etc/inittab:
-
-il:5:respawn:/opt/iplogin2/bin/iplogin2 /opt/iplogin2/etc/iplogin2.conf nomad -l /var/spool/iplogin2.users
+(as a non-privileged user)
+gzip -d < IP-login-2.2.7.tar.gz | tar xvf -
+cd IP-login-2.2.7
+./configure
+make
 
 
+(as root)
+make install
 
+
+See the README file for information on system configuration, startup and lots of other info.
+
+----------------
+
+Options to configure:
+
+  --prefix=PREFIX         install architecture-independent files in PREFIX
+                          [/opt/iplogin2]
+
+  --with-openssl=DIR      	point out where OpenSSL is installed
+  --with-libhl-sources=DIR      point out where the sources for libhl are located
+  --with-libwrap=DIR      	Use libwrap and point out the parent to include/tcpd.h and lib/libwrap.a
+  --with-iptables-sources=DIR   point out where the sources for iptables (>=1.2.5) are located
+
+
+...or use './configure --help' to se all available options.

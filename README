@@ -1,21 +1,115 @@
+iplogin2
+
+********** Don't try to build this on non-Linux systems. It will not work. ***********
+
+*** iptables ***
+You need sources for iptables to compile this, because the build
+process will link the target statically to the iptables libraries,
+which have to be built non-shared.
+
+The source archive can be downloaded from http://www.netfilter.org
+
+The Makefile can do this for you, but you will have to 'make clean'
+in your iptables directory and probably point it out to 'configure'.
+IP-login2 handles at least versions 1.2.5 - 1.2.7a and the configure
+script will try to figure out which version of iptables you have.
+
+'configure' will make an attempt to find the iptables-sources with
+the highest version number in "." and "..", but if that fails, just
+show it where they are:
+
+./configure --with-iptables-source=/usr/local/src/iptables-1.2.5
+
+You will also need to have full permissions in the iptables source
+directory, obviously.
+
+*** API Library ***
+This package includes a convenience library for building iplogin2
+command clients, like CGI programs and the like. It will be installed
+as (prefix)/lib/libiplogin2.a with the header file
+(prefix)/include/iplogin2.h
+
+Another library with several utility functions will be installed, as
+(prefix)/lib/libhl.a and (prefix)/include/hl.h
+
+You will need to link to both if you want to use the API.
+
+*** Libwrap ***
+If you want access control for the command connections, beyond what
+the authentication mechanism provides you need libwrap.a, which is
+included in the tcp_wrappers package. Note: Some libwrap installations
+seem to need additional libraries to link. If yours does this, add
+the libraries to Makefile.in (LIBS) and re-run 'configure' - or re-run
+'configure' with the '--without-libwrap' option to turn it off
+
+*** OpenSSL ***
+You need to have OpenSSL libraries installed to compile iplogin2, too.
+If they're not in a standard place, you can point configure to them,
+with '--with-openssl=<dir>'.
+
+*** Accounting ***
+IP-login2 supports a dynlib-based accounting mechanism for the
+DYI-minded. If libdl.a is available, the build process with build an
+example library called 'acclib_test', which is also installed by
+'make install'. Check the sample configuration file for information
+about how to use this - it is enabled by default, so turn it off
+when you've played long enough with it.
+
+*** Utilities ***
+iladmin is a menu-based (sort of) utility which can be used to test 
+iplogin2, check status, save and load, and quit. iladmin is built with a
+hardwired path to the configuration file, and if you don't provide
+a client name on the command line it will just use the first client
+definition in the configuration file.
+
+ilcount expects a path to a configuration file and a client name on the
+command line, and will just print the number of logged-in users.
+
+ilcmd is a simple generic command interface to iplogin2. It expects
+the path to a configuration file, a client name, and a command (within
+quotes) on its command line. It will send the command to iplogin2 and
+print the result on stdout.
+
+*** Starting
+To get iplogin2 up and running you need a configuration file.
+
+A localized copy of iplogin2.conf.sample will be installed as
+(prefix)/etc/iplogin2.conf, which is a good place to have the file.
+(iladmin will expect it to be there, so if you move it, you will have
+to recompile iladmin manually)
+
+You will also need to add a service definition to /etc/services,
+something like this:
+	iplogin2	4711/tcp
+
+The service name must match the "service" name in the configuration
+file - /opt/iplogin2/etc/iplogin2.conf.
+
+If you want to test iplogin2, just start it as root:
+/opt/iplogin2/bin/iplogin2 /opt/iplogin2/etc/iplogin2.conf nomad
+
+It will stay in the foreground and probably say very little. Check the
+relevant logfile to see its output.
+
+To test, try /opt/iplogin2/bin/iladmin, type "4" (to enter a command)
+and then "help". You should get a command list in response.
+
+It is a good idea to start iplogin2 from init (8), and this can
+be accomplished by adding a line to /etc/inittab:
+
+il:5:respawn:/opt/iplogin2/bin/iplogin2 /opt/iplogin2/etc/iplogin2.conf nomad -l /var/spool/iplogin2.users
+
+*************************************************************************
+
 Targets:
 
 iplogin2	The main server daemon. Handles user login/logout. Statically linked and stripped.
 iladmin		A simple menu-based administration client - see ILADMIN_DEFS in the Makefile
-libilglue.a	Glue for linking your own clients
+libiplogin.a	Glue for linking your own clients
 acclib_test.so	Accounting library example
 
 ilcmd		A single-command administration client
-iladmin_random	Test client sending random commands from a list
-find_interface	Test program for the route lookup code
-testipt		Bulk tester for the iptables filter code
-
-Prerequisites:
-
-The openssl library libcrypto.a must be installed, along with the accompanying include files.
-The libwrap.a library and tcpd.h from tcp_wrappers must be installed
-A version (1.2.5 works) of the 'iptables' package should be unpacked in this directory, and the symbolic link 'iptables' updated to point to the subdirectory in question.
-
+iladmin		Test client sending random commands from a list
 
 -----------------------------------
 2.2.4

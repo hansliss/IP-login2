@@ -79,11 +79,16 @@ else
 	AC_MSG_RESULT(********* Not using libwrap)
 fi
 
-AC_SUBST(LOCAL_TARGETS)
+AC_SUBST(HLLIB)
+AC_SUBST(HLLIB_INCLUDE)
 
 dnl --with-iptables-sources
 
-iptspath="./iptables-1.2.5"
+iptspath=
+for p in `ls -1d 2>/dev/null ./iptables-* ../iptables-* | sort -t/ +1`
+do
+	if test -f $p/Makefile; then iptspath=$p; fi
+done
 
 AC_ARG_WITH(iptables-sources,
 [  --with-iptables-sources=DIR      point out where the sources for iptables (>=1.2.5) are located],

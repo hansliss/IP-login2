@@ -77,10 +77,11 @@ if test ! -z "$libhlpath"; then
 	CFLAGS="$CFLAGS -I$libhlpath"
 	CPPFLAGS="$CPPFLAGS -I$libhlpath"
 	LDFLAGS="$LDFLAGS -L$libhlpath"
-	LOCAL_TARGETS="$LOCAL_TARGETS $libhlpath/libhl.a"
+	HLLIB="$libhlpath/libhl.a"
+	HLLIB_INCLUDE="$libhlpath/hl.h"
 	AC_SUBST(libhlpath)
 	LIBHL_DIR="$libhlpath"
-	(cd $libhlpath; ./configure $1)
+	(cd $libhlpath; ./configure $1 --prefix=$PREFIX)
 fi
 
 AC_SUBST(LIBHL_DIR)
