@@ -11,7 +11,9 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#include <hl.h>
+#include "makeaddress.h"
+#include "conffile.h"
+#include "hlcrypt.h"
 #include <iplogin2.h>
 
 #define BUFSIZE 8192

@@ -12,7 +12,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#include <hl.h>
+#include "conffile.h"
 #include "usernode.h"
 #include "engine.h"
 #include "config.h"

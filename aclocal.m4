@@ -56,36 +56,6 @@ AC_DEFUN(AC_LIBRARY_NET, [
     LIBS="-lresolv $LIBS", , ))
   ])
 
-AC_DEFUN(AC_LOCAL_LIBS, [
-dnl --with-libhl-sources
-AC_CHECK_HEADER(hl.h, AC_CHECK_LIB(hl,main, ,[libhlpath=./libhl]), [libhlpath=./libhl])dnl
-
-AC_ARG_WITH(libhl-sources,
-[  --with-libhl-sources=DIR	point out where the sources for libhl are located],
-[case "$withval" in
-	no)	AC_MSG_ERROR(You need libhl to compile this)
-		;;
-	yes)
-		;;
-	*)	libhlpath=`echo "$withval" | sed 's/\/$//'`
-		;;
-esac
-])dnl
-
-if test ! -z "$libhlpath"; then
-	AC_MSG_RESULT([Using local libhl in $libhlpath])
-	CFLAGS="$CFLAGS -I$libhlpath"
-	CPPFLAGS="$CPPFLAGS -I$libhlpath"
-	LDFLAGS="$LDFLAGS -L$libhlpath"
-	HLLIB="$libhlpath/libhl.a"
-	HLLIB_INCLUDE="$libhlpath/hl.h"
-	AC_SUBST(libhlpath)
-	LIBHL_DIR="$libhlpath"
-	(cd $libhlpath; ./configure --prefix=$PREFIX)
-fi
-
-AC_SUBST(LIBHL_DIR)
-])
 # libtool.m4 - Configure libtool for the host system. -*-Shell-script-*-
 ## Copyright 1996, 1997, 1998, 1999, 2000, 2001
 ## Free Software Foundation, Inc.

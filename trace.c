@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <sys/timeb.h>
 #include <time.h>
-#include <hl.h>
+
+#include "conffile.h"
 
 FILE *tracefile=NULL;
 

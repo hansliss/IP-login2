@@ -3,7 +3,7 @@
 #include <arpa/inet.h>
 #include <syslog.h>
 
-#include <hl.h>
+#include "varlist.h"
 #include "filterchains.h"
 #include "filterchains2.h"
 #include <iptables.h>

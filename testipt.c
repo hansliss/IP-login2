@@ -9,7 +9,6 @@
 #include <iptables.h>
 #include <string.h>
 
-#include <hl.h>
 #include "filterchains2.h"
 
 #if 0

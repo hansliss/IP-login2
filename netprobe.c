@@ -16,7 +16,6 @@
 #include <time.h>
 
 #include "autoconfig.h"
-#include <hl.h>
 #include "iplogin2.h"
 #include "find_interface.h"
 

@@ -11,8 +11,10 @@
 #include <stdio.h>
 #include <sys/ioctl.h>
 
+#include "stringfunc.h"
+#include "conffile.h"
+#include "hlcrypt.h"
 #include "autoconfig.h"
-#include <hl.h>
 #include "socketnode.h"
 #include "commands.h"
 #include "filterchains.h"

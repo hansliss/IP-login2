@@ -4,7 +4,9 @@
 #include <string.h>
 #include <iplogin2.h>
 #include <syslog.h>
-#include <hl.h>
+
+#include "stringfunc.h"
+#include "conffile.h"
 
 #define BUFSIZE 8192
 

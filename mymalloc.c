@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <syslog.h>
+#include <string.h>
 
 struct _context
 {

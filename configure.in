@@ -18,8 +18,6 @@ AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 AC_PROG_LN_S
 
-AC_LOCAL_LIBS
-
 dnl --with-libwrap
 libwrappath="/usr"
 
@@ -51,9 +49,6 @@ if test ! -z "$libwrappath"; then
 else
 	AC_MSG_RESULT(********* Not using libwrap)
 fi
-
-AC_SUBST(HLLIB)
-AC_SUBST(HLLIB_INCLUDE)
 
 dnl --with-iptables-sources
 
@@ -102,7 +97,6 @@ AC_CHECK_HEADERS(\
 	dlfcn.h\
 	errno.h\
 	fcntl.h\
-	hl.h\
 	iplogin2.h\
 	iptables.h\
 	limits.h\
@@ -132,7 +126,5 @@ AC_TYPE_SIGNAL
 AC_LIBRARY_NET
 
 ##AC_CHECK_FUNCS()
-
-LDFLAGS="$LDFLAGS -lhl"
 
 AC_OUTPUT(Makefile)

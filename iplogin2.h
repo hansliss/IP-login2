@@ -1,5 +1,3 @@
-#include <hl.h>
-
 /*
   NOTE: All the functions in here will openlog() with the parameters
   found in the configuration file and log to the given facility with the
@@ -14,6 +12,7 @@
   you obviously do not need to openlog() afterwards.
   */
 
+#include "varlist.h"
 
 /*
   Log in a new user.

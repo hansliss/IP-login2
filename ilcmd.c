@@ -12,7 +12,8 @@
 #include <sys/stat.h>
 
 #include "autoconfig.h"
-#include <hl.h>
+#include "conffile.h"
+#include "hlcrypt.h"
 #include <iplogin2.h>
 
 #define BUFSIZE 8192
