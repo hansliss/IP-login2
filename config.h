@@ -14,11 +14,11 @@ struct network
 };
 
 /* Ping configuration parameters for one interface
-  'pinginterval' : Microseconds between pings
-  'min_pinginterval' : Min ping interval in microseconds
+  'pinginterval' : Microseconds between pings. Calculated.
+  'min_pinginterval' : Min ping interval in microseconds. Taken from the configuration file.
   'missdiff' : Tuning: Difference in secs between last sent and last
-     received, before we count a miss. Necessary for handling lost packets.
-  'maxmissed' : Number of missed packets before killing a user.
+     received, before we count a miss. Taken from the configuration file.
+  'maxmissed' : Number of missed packets before killing a user. Calculated.
   'ping_source' : Source address for pings
   */
 

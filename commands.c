@@ -526,7 +526,7 @@ void printhelp(int csocket, namelist parms, usernode *users, struct config *conf
 {
   char x[32];
   int i;
-  syslog(LOG_NOTICE, "Command: help");
+  /*  syslog(LOG_NOTICE, "Command: help");*/
   sprintf(x,"%d",NCOMMANDS+1);
   hlcrypt_Send(csocket, x, h);
   hlcrypt_Send(csocket, "Usage:", h);
@@ -549,7 +549,7 @@ void add_user(int csocket, namelist parms, usernode *users, struct config *conf,
   int type, ifindex;
   usernode thisnode;
 
-  syslog(LOG_NOTICE, "Command: add");
+  /*  syslog(LOG_NOTICE, "Command: add");*/
   /* Try to extract an IP address from the name/adress received */
   mymalloc_pushcontext("add_user()");
   if (makeaddress(parms->name, &user_address))
@@ -667,7 +667,7 @@ void send_stat(int csocket, namelist parms, usernode *users, struct config *conf
   static char tmpbuf[BUFSIZE];
   struct in_addr user_address;
   usernode thisnode;
-  syslog(LOG_NOTICE, "Command: stat");
+  /*  syslog(LOG_NOTICE, "Command: stat");*/
   /* Convert the given user reference to an IP address and find the
      user in our list */
   if (makeaddress(parms->name, &user_address) &&
@@ -701,7 +701,7 @@ void dump_tstat(int csocket, namelist parms, usernode *users, struct config *con
   static char tmpbuf[BUFSIZE];
   usernode thisnode;
   FILE *statfile;
-  syslog(LOG_NOTICE, "Command: tstat");
+  /*  syslog(LOG_NOTICE, "Command: tstat");*/
   if (!(statfile=fopen(parms->name, "w")))
     {
       syslog(LOG_ERR, "TSTAT: %s: %m", parms->name);
@@ -806,7 +806,7 @@ void del_host(int csocket, namelist parms, usernode *users, struct config *conf,
   static char tmpbuf[BUFSIZE];
   usernode thisuser;
 
-  syslog(LOG_NOTICE, "Command: del");
+  /*  syslog(LOG_NOTICE, "Command: del");*/
   mymalloc_pushcontext("del_host()");
   /* Convert the given user reference to an IP address */
   if (makeaddress(parms->name, &user_address))
@@ -852,7 +852,7 @@ void del_user(int csocket, namelist parms, usernode *users, struct config *conf,
   usernode thisuser;
   int there = 0;
 
-  syslog(LOG_NOTICE, "Command: deluser");
+  /*  syslog(LOG_NOTICE, "Command: deluser");*/
   mymalloc_pushcontext("del_user()");
 
   for (;;)
@@ -1024,7 +1024,7 @@ void return_count(int csocket, namelist parms, usernode *users, struct config *c
   static char tmpbuf[BUFSIZE];
   int count=0;
   usernode tmpnode=*users;
-  syslog(LOG_NOTICE, "Command: count");
+  /*  syslog(LOG_NOTICE, "Command: count");*/
   while(tmpnode)
     {
       count++;
@@ -1121,6 +1121,7 @@ void do_addblock(int csocket, namelist parms, usernode *users, struct config *co
 	  hlcrypt_Send(csocket,"1", h);
 	  hlcrypt_Send(csocket,"addblock: failed.", h);
 	}
+      freenamelist(&chains);
     }
   else /* makeaddress */
     {
@@ -1173,6 +1174,7 @@ void do_delblock(int csocket, namelist parms, usernode *users, struct config *co
 	  hlcrypt_Send(csocket,"1", h);
 	  hlcrypt_Send(csocket,"delblock: failed.", h);
 	}
+      freenamelist(&chains);
     }
   else /* makeaddress */
     {
@@ -1270,6 +1272,11 @@ void docommand(struct config *conf,
   command_handler fcall;
   if (hlcrypt_Receive(csocket, tmpbuf, BUFSIZE, READ_TIMEOUT, h)>0)
     {
+      if ((newvsize=getvsize())!=oldvsize)
+	{
+	  syslog(LOG_DEBUG,"VSize changed by %ld bytes since last command", (signed long)newvsize-oldvsize);
+	  oldvsize=newvsize;
+	}
       switch (check_command(tmpbuf, clientname, conf->conffile, &parms, command, sizeof(command), &response, &fcall))
 	{
 	case COMMAND_ARGS:

@@ -109,7 +109,7 @@ void fchain_addrule(struct in_addr address, char *spec)
 	}
     }
 
-  syslog(LOG_INFO,"Adding filter line for %s to table %s, chain %s, direction %s, target %s", inet_ntoa(address), table, chain, direction, target);
+  /*  syslog(LOG_INFO,"Adding filter line for %s to table %s, chain %s, direction %s, target %s", inet_ntoa(address), table, chain, direction, target);*/
 
   if (!strcmp(direction, "s") || !strcmp(direction, "b"))
     iptables_add_line(table, chain, &address, &twofiftyfive, &zero, &zero, target);
@@ -136,7 +136,7 @@ void fchain_delrule(struct in_addr address, char *spec)
   if (!direction)
     direction="s";
 
-  syslog(LOG_INFO,"Removing filter line for %s to table %s, chain %s, direction %s, target %s", inet_ntoa(address), table, chain, direction, target);
+  /*  syslog(LOG_INFO,"Removing filter line for %s to table %s, chain %s, direction %s, target %s", inet_ntoa(address), table, chain, direction, target);*/
 
   if (!strcmp(direction, "s") || !strcmp(direction, "b"))
     iptables_delete_line(table, chain, &address, &twofiftyfive, &zero, &zero, target);

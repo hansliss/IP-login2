@@ -68,7 +68,7 @@ void handle_connection(struct config *conf, int csocket, usernode *users)
     syslog(deny_severity, "connection from %s refused", eval_client(&req));
   else
     {
-      syslog(allow_severity, "connect from %s", eval_client(&req));
+      /*      syslog(allow_severity, "connect from %s", eval_client(&req));*/
 #endif
       /* Get peer IP address */
       namelen=sizeof(client_sa);
@@ -536,7 +536,8 @@ int mainloop(struct config *conf, int command_server_socket)
 		}
 	    }
 	  else
-	    syslog(LOG_ERR, "select(): %m");
+	    if (errno != EINTR)
+	      syslog(LOG_ERR, "engine::mainloop(): select(): %m");
 	  last_accept=thiscycle;
 	}
 
@@ -658,9 +659,13 @@ int mainloop(struct config *conf, int command_server_socket)
       
       /* Finally, send out all those ping packets */
       ftime(&thiscycle);
-      number_to_ping=1000 * (1000 * (thiscycle.time - lastcycle.time) + 
-			     thiscycle.millitm - lastcycle.millitm) /
-	conf->defaultping.pinginterval;
+
+      if (conf->defaultping.pinginterval)
+	number_to_ping=1000 * (1000 * (thiscycle.time - lastcycle.time) + 
+			       thiscycle.millitm - lastcycle.millitm) /
+	  conf->defaultping.pinginterval;
+      else
+	number_to_ping=0;
       if (number_to_ping>0)
 	{
 	  /* Extract 'number_to_ping' users from the beginning of the list */

@@ -60,7 +60,7 @@ unsigned long getvsize()
 
 void recalc(struct pingconfig *pingconf, int logout_timeout, int number_of_users)
 {
-  int margin;
+  /*  int margin;*/
   int lt=logout_timeout - pingconf->missdiff;
   int pi=pingconf->pinginterval;
   int mm=pingconf->maxmissed;
@@ -92,8 +92,8 @@ void recalc(struct pingconfig *pingconf, int logout_timeout, int number_of_users
       (mm != pingconf->maxmissed))
     syslog(LOG_DEBUG, "Users: %d - New ping interval: %d us, new maxmissed=%d\n",
 	    number_of_users, pingconf->pinginterval, pingconf->maxmissed);
-  margin=1000000 * logout_timeout / pingconf->maxmissed -
-    number_of_users * pingconf->min_pinginterval;
+  /*  margin=1000000 * logout_timeout / pingconf->maxmissed -
+    number_of_users * pingconf->min_pinginterval;*/
 }
 
 int

@@ -29,7 +29,7 @@
 #define BLOCKSIZE 16
 #define TAG "{aes-256-cbc}"
 
-int uu_aes_encrypt(unsigned char *ctext, int ctextsize, unsigned char *key, int keysize, char *outbuf, int outbufsize)
+int uu_aes_encrypt(unsigned char *ctext, int ctextsize, unsigned char *key, int keysize, char *outbuf, int outbufsize, unsigned char *iniv)
 {
   int l, i, r;
   time_t now;
@@ -64,11 +64,16 @@ int uu_aes_encrypt(unsigned char *ctext, int ctextsize, unsigned char *key, int 
 		    strlen(TAG) + 1))
     return -3;
 
-  /* Construct an IV, by mapping in a four-byte timestamp and padding with random data */
-  time(&now);
-  now=htonl(now);
-  memcpy(iv, (unsigned char*)(&now), sizeof(now));
-  memcpy(iv+sizeof(now), genseed(), IVLEN-sizeof(now));
+  if (!iniv)
+    {
+      /* Construct an IV, by mapping in a four-byte timestamp and padding with random data */
+      time(&now);
+      now=htonl(now);
+      memcpy(iv, (unsigned char*)(&now), sizeof(now));
+      memcpy(iv+sizeof(now), genseed(), IVLEN-sizeof(now));
+    }
+  else
+    memcpy(iv, iniv, IVLEN);
 
   /* Expand the binary key to an ASCII hex string */
   for (i=0; i < keysize/8; i++)

@@ -203,7 +203,7 @@ int initialize(struct config *conf)
       sscanf(tmpbuf,"%i",&(conf->accept_interval));
     }
   else
-    conf->accept_interval=1;
+    conf->accept_interval=20;
   if (conf_getvar(conf->conffile, "server", conf->servername, "accept_timeout", tmpbuf, BUFSIZE)!=0)
     {
       sscanf(tmpbuf,"%i",&(conf->accept_timeout));
@@ -216,24 +216,12 @@ int initialize(struct config *conf)
     }
   else
     conf->logout_timeout=10;
-  if (conf_getvar(conf->conffile, "server", conf->servername, "pinginterval", tmpbuf, BUFSIZE)!=0)
-    {
-      sscanf(tmpbuf,"%i",&(conf->defaultping.pinginterval));
-    }
-  else
-    conf->defaultping.pinginterval=30000;
   if (conf_getvar(conf->conffile, "server", conf->servername, "min_pinginterval", tmpbuf, BUFSIZE)!=0)
     {
       sscanf(tmpbuf,"%i",&(conf->defaultping.min_pinginterval));
     }
   else
     conf->defaultping.min_pinginterval=1000;
-  if (conf_getvar(conf->conffile, "server", conf->servername, "maxmissed", tmpbuf, BUFSIZE)!=0)
-    {
-      sscanf(tmpbuf,"%i",&(conf->defaultping.maxmissed));
-    }
-  else
-    conf->defaultping.maxmissed=3;
   if (conf_getvar(conf->conffile, "server", conf->servername, "missdiff", tmpbuf, BUFSIZE)!=0)
     {
       sscanf(tmpbuf,"%i",&(conf->defaultping.missdiff));

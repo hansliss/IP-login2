@@ -94,9 +94,13 @@ int readblock(SOCKET fd, int timeout, unsigned char *buf, int count)
       else
 	{
 	  if (n<0)
-	    syslog(LOG_ERR,"select(): %m");
+	    {
+	      if (errno == EINTR)
+		continue;
+	      syslog(LOG_ERR,"hlcrypt::readblock(): select(): %m");
+	    }
 	  else
-	    syslog(LOG_ERR,"select(): timeout");
+	    syslog(LOG_ERR,"hlcrypt::readblock(): select(): timeout");
 	  return -1;
 	}
     }
@@ -223,7 +227,7 @@ int hlcrypt_Send(SOCKET s, unsigned char *string, HLCRYPT_HANDLE h)
   if (h && (h->encryption==ENCRYPTION_AES))
     {
       strncpy(tmpbuf, string, sizeof(tmpbuf));
-      i=uu_aes_encrypt(tmpbuf, strlen(tmpbuf), h->aes_key, 256, tmpbuf2, sizeof(tmpbuf2));
+      i=uu_aes_encrypt(tmpbuf, strlen(tmpbuf), h->aes_key, 256, tmpbuf2, sizeof(tmpbuf2), NULL);
 #ifdef DEBUG
       if (i)
 	syslog(LOG_DEBUG, "uu_aes_encrypt(): %d", i);
@@ -452,7 +456,7 @@ int hlcrypt_AuthClient(SOCKET csocket, unsigned char *local_key,
     }
   else
     {
-      syslog(LOG_ERR, "No response or wrong responce received");
+      syslog(LOG_ERR, "No response or wrong response received");
       return 0;
     }
 }

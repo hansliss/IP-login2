@@ -12,6 +12,7 @@
 #include <hl.h>
 #include "filterchains2.h"
 
+#if 0
 iptc_handle_t handle=NULL;
 namelist used_chains=NULL;
 
@@ -90,6 +91,8 @@ void fchain_flush(char *chain)
   freenamelist(&tmplist);
 }
 
+#endif
+
 void checkmem(char *str, int runs)
 {
   static int memsize=0, newmemsize;
@@ -125,14 +128,19 @@ int main()
   int i, runs=0, ret;
 
   addresses=(struct in_addr *)malloc(acount * sizeof(struct in_addr *));
+  iptables_init();
+
   for (i=0;i<acount;i++)
     inet_aton(addresses_txt[i],&(addresses[i]));
 
   while (1)
     {
       for (i=0;i<acount;i++)
+#if 0
 	if ((ret=fchain_addrule(addresses[i],"foobar"))==0)
 	  perror("fchain_addrule()");
+#endif
+	fchain_addrule(addresses[i],"foobar");
       checkmem("add", runs);
       /*      for (i=0;i<acount;i++)
 	if ((ret=fchain_delrule(addresses[i],"foobar"))==0)
