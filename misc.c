@@ -58,37 +58,40 @@ unsigned long getvsize()
 #define DEFAULT_MISSED 5
 #define MIN_MISSED 2
 
-void recalc(struct config *conf, int number_of_users)
+void recalc(struct pingconfig *pingconf, int logout_timeout, int number_of_users)
 {
   int margin;
-  int lt=conf->logout_timeout - conf->missdiff;
-  int pi=conf->pinginterval;
-  int mm=conf->maxmissed;
+  int lt=logout_timeout - pingconf->missdiff;
+  int pi=pingconf->pinginterval;
+  int mm=pingconf->maxmissed;
   if (lt<=0)
     lt=1; /* Wrong but safe */
-  conf->maxmissed=DEFAULT_MISSED;
+  pingconf->maxmissed=DEFAULT_MISSED;
 
-  if ((number_of_users * conf->maxmissed) == 0)
-    conf->pinginterval=conf->min_pinginterval;
+  if ((number_of_users * pingconf->maxmissed) == 0)
+    pingconf->pinginterval=pingconf->min_pinginterval;
   else
-    conf->pinginterval=(1000000 * lt)/(number_of_users * conf->maxmissed);
-  if (conf->pinginterval<conf->min_pinginterval)
+    pingconf->pinginterval=(1000000 * lt)/(number_of_users * pingconf->maxmissed);
+  if (pingconf->pinginterval<pingconf->min_pinginterval)
     {
-      conf->pinginterval=conf->min_pinginterval;
-      if ((number_of_users * conf->pinginterval) == 0)
-	conf->maxmissed=MIN_MISSED;
+      pingconf->pinginterval=pingconf->min_pinginterval;
+      if ((number_of_users * pingconf->pinginterval) == 0)
+	pingconf->maxmissed=MIN_MISSED;
       else
-	conf->maxmissed=(1000000 * lt)/(number_of_users * conf->pinginterval);
-      if (conf->maxmissed<MIN_MISSED)
+	pingconf->maxmissed=(1000000 * lt)/(number_of_users * pingconf->pinginterval);
+      if (pingconf->maxmissed<MIN_MISSED)
 	{
-	  conf->maxmissed=MIN_MISSED;
-	  conf->logout_timeout=number_of_users * conf->maxmissed * conf->pinginterval / 1000000 + conf->missdiff;
+	  pingconf->maxmissed=MIN_MISSED;
+	  logout_timeout=number_of_users * 
+	    pingconf->maxmissed *
+	    pingconf->pinginterval / 1000000
+	    + pingconf->missdiff;
 	}
     }
-  if ((pi != conf->pinginterval) ||
-      (mm != conf->maxmissed))
+  if ((pi != pingconf->pinginterval) ||
+      (mm != pingconf->maxmissed))
     syslog(LOG_DEBUG, "Users: %d - New ping interval: %d us, new maxmissed=%d\n",
-	    number_of_users, conf->pinginterval, conf->maxmissed);
-  margin=1000000 * conf->logout_timeout / conf->maxmissed -
-    number_of_users * conf->min_pinginterval;
+	    number_of_users, pingconf->pinginterval, pingconf->maxmissed);
+  margin=1000000 * logout_timeout / pingconf->maxmissed -
+    number_of_users * pingconf->min_pinginterval;
 }

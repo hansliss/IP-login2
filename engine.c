@@ -358,7 +358,7 @@ int mainloop(struct config *conf, int command_server_socket)
 
   /* If 'loadfile' is non-empty, load state from the file */
   if (strlen(conf->loadfile)>0)
-    do_load_state(-1, conf->loadfile, &users, &(conf->ping_source), conf->accounting_handle);
+    do_load_state(-1, conf->loadfile, &users, &(conf->defaultping.ping_source), conf->accounting_handle);
 
   /* Prepare for saving functionality */
   savestate_helper(0, conf->loadfile, &users, &allsockets);
@@ -392,7 +392,7 @@ int mainloop(struct config *conf, int command_server_socket)
 				      (struct sockaddr *)&remote_addr,
 				      &addr_len))!=-1)
 		    handle_connection(conf->conffile, conf->progname, csocket,
-				      conf->servername, &users, &(conf->ping_source), conf->accounting_handle);
+				      conf->servername, &users, &(conf->defaultping.ping_source), conf->accounting_handle);
 		  else if (errno != EINTR)
 		    syslog(LOG_ERR,"accept(): %m");
 		}
@@ -424,7 +424,7 @@ int mainloop(struct config *conf, int command_server_socket)
 	      if (tmpuser->last_checked_send != tmpuser->last_sent)
 		{
 		  if (tmpuser->last_received <
-		      (tmpuser->last_sent - conf->missdiff))
+		      (tmpuser->last_sent - conf->defaultping.missdiff))
 		    {
 		      tmpuser->missed++;
 		      tmpuser->last_checked_send=tmpuser->last_sent;
@@ -442,7 +442,7 @@ int mainloop(struct config *conf, int command_server_socket)
 		}
 
 	      /* If missed one too many times.. */
-	      if (tmpuser->missed > conf->maxmissed)
+	      if (tmpuser->missed > conf->defaultping.maxmissed)
 		{
 		  missstat_count-=tmpuser->missed;
 		  if (missstat_count<0)
@@ -495,7 +495,7 @@ int mainloop(struct config *conf, int command_server_socket)
 	    } /* while (tmpuser) */
 	  if (scount!=lastcount)
 	    {
-	      recalc(conf, scount);
+	      recalc(&(conf->defaultping), conf->logout_timeout, scount);
 	      lastcount=scount;
 	    }
 	  
@@ -521,7 +521,7 @@ int mainloop(struct config *conf, int command_server_socket)
       ftime(&thiscycle);
       number_to_ping=1000 * (1000 * (thiscycle.time - lastcycle.time) + 
 			     thiscycle.millitm - lastcycle.millitm) /
-	conf->pinginterval;
+	conf->defaultping.pinginterval;
       if (number_to_ping>0)
 	{
 	  /* Extract 'number_to_ping' users from the beginning of the list */

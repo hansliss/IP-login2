@@ -9,4 +9,4 @@ int getRSS();
 unsigned long getvsize();
 
 /* Recalculate timing parameters */
-void recalc(struct config *conf, int number_of_users);
+void recalc(struct pingconfig *pingconf, int logout_timeout, int number_of_users);

@@ -21,9 +21,10 @@
 char *versionstring_parts[]=
 {
   "iplogin2",
-  "2.2.2",
+  "2.2.3",
   "[ping distribution]",
   "[user blocking]",
+  "[interface specific config]",
   __DATE__,
   __TIME__
 };
@@ -214,36 +215,36 @@ int initialize(struct config *conf)
     conf->logout_timeout=10;
   if (conf_getvar(conf->conffile, "server", conf->servername, "pinginterval", tmpbuf, BUFSIZE)!=0)
     {
-      sscanf(tmpbuf,"%i",&(conf->pinginterval));
+      sscanf(tmpbuf,"%i",&(conf->defaultping.pinginterval));
     }
   else
-    conf->pinginterval=30000;
+    conf->defaultping.pinginterval=30000;
   if (conf_getvar(conf->conffile, "server", conf->servername, "min_pinginterval", tmpbuf, BUFSIZE)!=0)
     {
-      sscanf(tmpbuf,"%i",&(conf->min_pinginterval));
+      sscanf(tmpbuf,"%i",&(conf->defaultping.min_pinginterval));
     }
   else
-    conf->min_pinginterval=1000;
+    conf->defaultping.min_pinginterval=1000;
   if (conf_getvar(conf->conffile, "server", conf->servername, "maxmissed", tmpbuf, BUFSIZE)!=0)
     {
-      sscanf(tmpbuf,"%i",&(conf->maxmissed));
+      sscanf(tmpbuf,"%i",&(conf->defaultping.maxmissed));
     }
   else
-    conf->maxmissed=3;
+    conf->defaultping.maxmissed=3;
   if (conf_getvar(conf->conffile, "server", conf->servername, "missdiff", tmpbuf, BUFSIZE)!=0)
     {
-      sscanf(tmpbuf,"%i",&(conf->missdiff));
+      sscanf(tmpbuf,"%i",&(conf->defaultping.missdiff));
     }
   else
-    conf->missdiff=5;
+    conf->defaultping.missdiff=5;
   /* Find out what address from which to send ICMP packets.
      If this is "any" or non-existent, the address is deduced from the
      kernel routing table. If an address is given in the configuration
      file, it must be "any", a IP address in dot notation or a resolvable host name */
-  conf->ping_source.sin_family=AF_INET;
+  conf->defaultping.ping_source.sin_family=AF_INET;
   if ((!conf_getvar(conf->conffile,"server",conf->servername,"ping_source",tmpbuf,BUFSIZE)) ||
       !strcasecmp(tmpbuf,"any"))
-    conf->ping_source.sin_addr.s_addr=INADDR_ANY;
+    conf->defaultping.ping_source.sin_addr.s_addr=INADDR_ANY;
   else
     {
       if (!inet_aton(tmpbuf,&my_inaddr))
@@ -256,18 +257,18 @@ int initialize(struct config *conf)
 	    }
 	  else
 	    {
-	      conf->ping_source.sin_family=listen_he->h_addrtype;
-	      memcpy(&(conf->ping_source.sin_addr), listen_he->h_addr_list[0],
-		     sizeof(conf->ping_source.sin_addr));
+	      conf->defaultping.ping_source.sin_family=listen_he->h_addrtype;
+	      memcpy(&(conf->defaultping.ping_source.sin_addr), listen_he->h_addr_list[0],
+		     sizeof(conf->defaultping.ping_source.sin_addr));
 	    }
 	}
       else
-	memcpy(&(conf->ping_source.sin_addr), &(my_inaddr), sizeof(conf->ping_source.sin_addr));
+	memcpy(&(conf->defaultping.ping_source.sin_addr), &(my_inaddr), sizeof(conf->defaultping.ping_source.sin_addr));
     }
 
-  if (conf->ping_source.sin_addr.s_addr != INADDR_ANY)
+  if (conf->defaultping.ping_source.sin_addr.s_addr != INADDR_ANY)
     {
-      syslog(LOG_NOTICE, "Using %s as source for ICMP ping", inet_ntoa(conf->ping_source.sin_addr));
+      syslog(LOG_NOTICE, "Using %s as source for ICMP ping", inet_ntoa(conf->defaultping.ping_source.sin_addr));
     }
   trace_init(conf->conffile, conf->servername);
 

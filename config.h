@@ -24,6 +24,15 @@
   'pidfile' : PID file (!)
   */
 
+struct pingconfig
+{
+  unsigned int pinginterval;
+  unsigned int min_pinginterval;
+  int missdiff;
+  int maxmissed;
+  struct sockaddr_in ping_source;
+};
+
 struct config
 {
   char conffile[CONFBSIZE];
@@ -32,15 +41,11 @@ struct config
   int accept_interval;
   int accept_timeout;
   int logout_timeout;
-  unsigned int pinginterval;
-  unsigned int min_pinginterval;
-  int missdiff;
-  int maxmissed;
-  struct sockaddr_in ping_source;
   struct sockaddr_in listen_address;
   char loadfile[CONFBSIZE];
   char pidfile[CONFBSIZE];
   void *accounting_handle;
+  struct pingconfig defaultping;
 };
 
 char *params(struct config *conf);
