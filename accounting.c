@@ -1,3 +1,4 @@
+#include "autoconfig.h"
 #if HAVE_LIBDL == 1
 #include <dlfcn.h>
 #endif

@@ -13,6 +13,8 @@ dnl Checks for programs.
 if test $CC = "gcc"; then
 	CFLAGS="$CFLAGS -Wall"
 fi
+AC_LIBTOOL_DLOPEN
+AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 AC_PROG_LN_S
 

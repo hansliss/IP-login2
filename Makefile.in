@@ -21,15 +21,47 @@ prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
 mandir = @mandir@
+includedir = @includedir@
+libdir = @libdir@
+sysconfdir = @sysconfdir@
 
+LCFLAGS=$(CFLAGS)
 CFLAGS+=-static
 
 DISTFILES =
 
-TARGET=iplogin2
-SOURCES=main.c engine.c find_interface.c misc.c filterchains.c filterchains2.c commands.c icmpping.c arpping.c config.c accounting.c trace.c mymalloc.c usernode.c
-OBJS=main.o engine.o find_interface.o misc.o filterchains.o filterchains2.o commands.o icmpping.o arpping.o config.o accounting.o trace.o mymalloc.o usernode.o
-LIB_OBJS=
+IPLOGIN2_TARGET=iplogin2
+IPLOGIN2_SOURCES=main.c engine.c find_interface.c misc.c filterchains.c filterchains2.c commands.c icmpping.c arpping.c config.c accounting.c trace.c mymalloc.c usernode.c
+IPLOGIN2_OBJS=main.o engine.o find_interface.o misc.o filterchains.o filterchains2.o commands.o icmpping.o arpping.o config.o accounting.o trace.o mymalloc.o usernode.o
+
+IPLOGIN2_CONFFILE=iplogin2.conf
+
+ILADMIN_TARGET=iladmin
+ILADMIN_SOURCES=iladmin.c
+ILADMIN_OBJS=iladmin.o ilglue.o syslog_names.o
+
+ILCOUNT_TARGET=ilcount
+ILCOUNT_SOURCES=ilcount.c
+ILCOUNT_OBJS=ilcount.o ilglue.o syslog_names.o
+
+ILCMD_TARGET=ilcmd
+ILCMD_SOURCES=ilcmd.c
+ILCMD_OBJS=ilcmd.o
+
+LIBACCLIB=acclib_test.la
+LIBACCLIB_SRC=acclib_test.c
+LIBACCLIB_OBJ=acclib_test.lo
+
+LIB_IPLOGIN2=libiplogin2.a
+LIB_SOURCES=ilglue.c syslog_names.c
+LIB_OBJS=ilglue.o syslog_names.o
+LIB_HEADER=iplogin2.h
+
+PROGRAMS=$(IPLOGIN2_TARGET) $(ILADMIN_TARGET) $(ILCOUNT_TARGET) $(ILCMD_TARGET)
+LIBRARIES=$(LIB_IPLOGIN2) $(LIBACCLIB)
+TARGETS=$(PROGRAMS) $(LIBRARIES) $(IPLOGIN2_CONFFILE).inst
+OBJS=$(IPLOGIN2_OBJS) $(ILADMIN_OBJS) $(ILCOUNT_OBJS) $(ILCMD_OBJS) $(LIB_OBJS) $(LIBACCLIB_OBJ)
+SOURCES=$(IPLOGIN2_SOURCES) $(ILADMIN_SOURCES) $(ILCOUNT_SOURCES) $(ILCMD_SOURCES) $(LIB_SOURCES) $(LIBACCLIB_SRC)
 
 IPTSRCDIR=@iptspath@
 IPTVERSION=@IPTVERSION@
@@ -40,41 +72,74 @@ IPT=$(IPTFLAGS) $(IPTLDLIB)
 
 CFLAGS+=-I$(IPTINCDIR) -DIPTVERSION=\"$(IPTVERSION)\"
 
-all: $(LOCAL_TARGETS) $(TARGET)
+all: $(LOCAL_TARGETS) $(TARGETS)
 
 install: all
-	$(top_srcdir)/mkinstalldirs $(bindir)
-	$(INSTALL) $(TARGET) $(bindir)/$(TARGET)
+	$(top_srcdir)/mkinstalldirs $(bindir) $(libdir) $(includedir) $(sysconfdir)
+	$(INSTALL) -b $(PROGRAMS) $(bindir)/
+	./libtool $(INSTALL) -b $(LIBRARIES) $(libdir)/
+	$(INSTALL) -b -m0644 $(LIB_HEADER) $(includedir)/
+	if test ! -f $(sysconfdir)/$(IPLOGIN2_CONFFILE); then install -m0600 $(IPLOGIN2_CONFFILE).inst $(sysconfdir)/$(IPLOGIN2_CONFFILE); else echo Preserving existing $(sysconfdir)/$(IPLOGIN2_CONFFILE); fi
+	./libtool --mode=finish $(libdir)
+	
 ##	$(top_srcdir)/mkinstalldirs $(mandir)/man1
 ##	$(INSTALL) $(MAN) $(mandir)/man1/$(MAN)
 
-$(TARGET): $(OBJS) $(IPTSRCDIR)/extensions/libext.a
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(IPT) $(LDFLAGS) $(LIBS)
-
-$(OBJS): $(SOURCES)
+$(IPLOGIN2_TARGET): $(IPLOGIN2_OBJS) $(IPTSRCDIR)/extensions/libext.a
+	$(CC) $(CFLAGS) -o $(IPLOGIN2_TARGET) $(IPLOGIN2_OBJS) $(IPT) $(LDFLAGS) $(LIBS)
+	strip $(IPLOGIN2_TARGET)
 
 $(IPTSRCDIR)/extensions/libext.a:
 	(cd $(IPTSRCDIR); make NO_SHARED_LIBS=1)
 
-ACC_OPT=-fPIC -O -Wall -shared -Wl,-soname,acclib_test.1.0 -Wl,--version-script,lib.scr
-acclib_test.so:	acclib_test.o
-	${CC} ${ACC_OPT} acclib_test.o -o acclib_test.so
+$(LIBACCLIB): $(LIBACCLIB_SRC)
+	./libtool $(CC) -c $(LIBACCLIB_SRC) -o $(LIBACCLIB_OBJ)
+	./libtool $(CC) -module $(LIBACCLIB_OBJ) -o $(LIBACCLIB) -rpath $(libdir) $(LDFLAGS) $(LIBS)
 
 $(libhlpath)/libhl.a:
 	(cd $(libhlpath); make)
 
+$(IPLOGIN2_CONFFILE).inst: $(IPLOGIN2_CONFFILE).sample
+	sed 's@/opt/iplogin2/lib@'"$(libdir)"'@g' < $(IPLOGIN2_CONFFILE).sample > $(IPLOGIN2_CONFFILE).inst
+
+$(ILADMIN_TARGET): $(ILADMIN_OBJS) $(LIB_IPLOGIN2)
+	$(CC) $(CFLAGS) -o $(ILADMIN_TARGET) $(ILADMIN_OBJS) $(LIB_IPLOGIN2) $(LDFLAGS) $(LIBS)
+	strip $(ILADMIN_TARGET)
+
+iladmin.o: iladmin.c
+	$(CC) $(CFLAGS) -DCONFFILE=\"$(sysconfdir)/$(IPLOGIN2_CONFFILE)\" -c iladmin.c -o iladmin.o
+
+$(ILCOUNT_TARGET): $(ILCOUNT_OBJS) $(LIB_IPLOGIN2)
+	$(CC) $(CFLAGS) -o $(ILCOUNT_TARGET) $(ILCOUNT_OBJS) $(LIB_IPLOGIN2) $(LDFLAGS) $(LIBS)
+	strip $(ILCOUNT_TARGET)
+
+ilcount.o: ilcount.c
+	$(CC) $(CFLAGS) -DCONFFILE=\"$(sysconfdir)/$(IPLOGIN2_CONFFILE)\" -c ilcount.c -o ilcount.o
+
+$(ILCMD_TARGET): $(ILCMD_OBJS) $(LIB_IPLOGIN2)
+	$(CC) $(CFLAGS) -o $(ILCMD_TARGET) $(ILCMD_OBJS) $(LIB_IPLOGIN2) $(LDFLAGS) $(LIBS)
+	strip $(ILCMD_TARGET)
+
+ilcmd.o: ilcmd.c
+	$(CC) $(CFLAGS) -DCONFFILE=\"$(sysconfdir)/$(IPLOGIN2_CONFFILE)\" -c ilcmd.c -o ilcmd.o
+
+$(LIB_IPLOGIN2): $(LIB_OBJS)
+	ar -r $(LIB_IPLOGIN2) $(LIB_OBJS)
+	ranlib $(LIB_IPLOGIN2)
+
 clean:
-	/bin/rm -f $(TARGET) *.o core
+	./libtool rm -f $(TARGETS) $(OBJS) core
 
 distclean: clean config-clean
 	if test ! -z "$(LIBHL_DIR)"; then (cd $(LIBHL_DIR); if test -f ./Makefile; then make distclean; fi); fi
+	rm -rf .libs
 
 config-clean: confclean-recursive
 
 confclean-recursive: cfg-clean
 
 cfg-clean:
-	/bin/rm -f Makefile autoconfig.h config.status config.cache config.log
+	/bin/rm -f Makefile autoconfig.h config.status config.cache config.log libtool
 
 mostlyclean: clean
 

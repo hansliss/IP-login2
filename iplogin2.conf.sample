@@ -2,6 +2,7 @@ server nomad
 	syslog_facility=local6
 	syslog_name=iplogin2
 	pidfile=/var/run/iplogin.pid
+	ip=127.0.0.1   # This is for iladmin and other local clients
 	listen_address=0.0.0.0
 	listen_port=iplogin2
 	accept_interval=30
@@ -12,7 +13,7 @@ server nomad
 	missdiff=2
 	maxmissed=5
 	key=The key to it all is fnurgel
-	accounting_lib=./acclib_test.so
+	accounting_lib=/opt/iplogin2/lib/acclib_test.so
 	accounting_id=iplogin
 	stat_timelimit=60
 	stat_countlimit=3
